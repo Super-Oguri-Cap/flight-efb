@@ -74,9 +74,11 @@ fun OnboardingScreen(
             Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 when (step) {
                     0 -> WelcomeStep(onNext = { step = 1 })
-                    1 -> PermissionStep(storageGranted) {
-                        if (storageGranted) step = 2 else onRequestStorage()
-                    }
+                    1 -> PermissionStep(
+                        storageGranted = storageGranted,
+                        onGoSettings = onRequestStorage,
+                        onContinue = { step = 2 },
+                    )
                     2 -> RootStep(
                         vm = vm,
                         onPickRoot = onPickRoot,
@@ -167,7 +169,11 @@ private fun WelcomeStep(onNext: () -> Unit) {
 }
 
 @Composable
-private fun PermissionStep(storageGranted: Boolean, onAction: () -> Unit) {
+private fun PermissionStep(
+    storageGranted: Boolean,
+    onGoSettings: () -> Unit,
+    onContinue: () -> Unit,
+) {
     Column {
         Text("第 1 步 · 所有文件访问权限", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
@@ -191,8 +197,16 @@ private fun PermissionStep(storageGranted: Boolean, onAction: () -> Unit) {
             }
         }
         Spacer(Modifier.height(20.dp))
-        Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
-            Text(if (storageGranted) "已授权，继续" else "去系统设置授权")
+        Button(onClick = onGoSettings, modifier = Modifier.fillMaxWidth()) {
+            Text("去系统设置授权")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = storageGranted,
+        ) {
+            Text("已授权，继续")
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -200,6 +214,19 @@ private fun PermissionStep(storageGranted: Boolean, onAction: () -> Unit) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text(
+            text = "部分定制系统（手机分身、平行空间里）状态探测不准，显示「未授权」但权限实际可用。" +
+                "确认系统开关已打开时，点下方按钮直接继续，下一步的目录扫描会做实际校验。",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        TextButton(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("确认已授权，跳过检测继续")
+        }
     }
 }
 

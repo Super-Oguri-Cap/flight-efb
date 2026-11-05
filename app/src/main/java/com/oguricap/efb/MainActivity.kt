@@ -91,8 +91,16 @@ class MainActivity : ComponentActivity() {
         storageGranted = hasStorageAccess()
     }
 
-    private fun hasStorageAccess(): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+    // HyperOS 等定制系统在某些运行环境（手机分身、平行空间）里，
+    // Environment.isExternalStorageManager() 内部会读到空的用户数组，
+    // 直接抛 ArrayIndexOutOfBoundsException；首次启动就在 onCreate 里闪退。
+    // 这个探测只用于推进引导界面，不是功能开关：
+    // 抛异常时按「未授权」处理，扫描步骤会拿真实目录读取做最终判定，
+    // 授权确实已开时用户点「已授权，继续」也能往下走。
+    private fun hasStorageAccess(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        return runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+    }
 
     // 部分定制系统没有实现应用级的「所有文件访问权限」页面，
     // 依次回退到全局页面与应用详情页，避免直接抛 ActivityNotFoundException。

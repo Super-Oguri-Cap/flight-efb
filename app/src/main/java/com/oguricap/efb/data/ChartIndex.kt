@@ -66,6 +66,12 @@ class ChartIndex private constructor(
         ).use { c -> readCharts(c) }
     }
 
+    fun chartByFile(path: String): Chart? =
+        db.rawQuery(
+            "SELECT id, icao, airport, chartType, title, file, rwys FROM charts WHERE file = ? LIMIT 1",
+            arrayOf(path),
+        ).use { c -> readCharts(c).firstOrNull() }
+
     fun chartCount(): Int =
         db.rawQuery("SELECT COUNT(*) FROM charts", null).use { c ->
             if (c.moveToFirst()) c.getInt(0) else 0

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -42,7 +44,17 @@ fun AirportScreen(
     LaunchedEffect(icao) {
         if (vm.currentAirport?.icao != icao) vm.openAirport(icao)
     }
-    // 从阅读页返回时 currentCharts 可能已被后续操作覆盖，这里以 icao 为准补齐
+
+    // 从阅读页退回时回到原来那一屏，而不是列表顶部
+    val saved = vm.savedScroll(icao)
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = saved?.first ?: 0,
+        initialFirstVisibleItemScrollOffset = saved?.second ?: 0,
+    )
+    LaunchedEffect(listState, icao) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> vm.rememberScroll(icao, index, offset) }
+    }
 
     val airport = vm.currentAirport
     val grouped = vm.currentCharts.groupBy { it.chartType }
@@ -71,7 +83,7 @@ fun AirportScreen(
             )
         },
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding)) {
             grouped.forEach { (type, charts) ->
                 val expanded = type in vm.expandedTypes
                 item(key = "header-" + type) {

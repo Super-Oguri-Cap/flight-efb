@@ -21,12 +21,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class ChartViewModel(
-    app: Application,
-    private val io: CoroutineDispatcher = Dispatchers.IO,
-) : AndroidViewModel(app) {
+// ViewModel 默认工厂用反射找 (Application) 单参构造，
+// 多一个带默认值的构造参数就不会生成这个签名，
+// 启动时 viewModel() 直接抛 NoSuchMethodException，进界面即闪退。
+// 测试注入调度器改走内部可变属性。
+class ChartViewModel(app: Application) : AndroidViewModel(app) {
 
     private val settings = Settings(app)
+
+    @JvmSynthetic
+    internal var io: CoroutineDispatcher = Dispatchers.IO
 
     var index: ChartIndex? = null
         private set
@@ -146,6 +150,34 @@ class ChartViewModel(
             airports = withContext(io) { Perf.timed("query_airports") { idx.airports() } }
         }
     }
+
+    // 每个机场的列表滚动位置：从阅读页退回机场页时要回到原来那一屏
+    private val airportScroll = mutableMapOf<String, Pair<Int, Int>>()
+
+    fun savedScroll(icao: String): Pair<Int, Int>? = airportScroll[icao]
+
+    // 搜索页的滚动位置，逻辑同上
+    private var searchScroll: Pair<Int, Int>? = null
+
+    fun savedSearchScroll(): Pair<Int, Int>? = searchScroll
+
+    fun rememberSearchScroll(index: Int, offset: Int) {
+        searchScroll = index to offset
+    }
+
+    fun rememberScroll(icao: String, index: Int, offset: Int) {
+        airportScroll[icao] = index to offset
+    }
+
+    // 按文件路径找回单张图：阅读页重建、搜索命中直接打开时用
+    fun chartByPath(path: String): Chart? {
+        val idx = index ?: return null
+        return chartByPathCache.get(path) ?: runCatching { idx.chartByFile(path) }
+            .getOrNull()
+            ?.also { chartByPathCache.put(path, it) }
+    }
+
+    private val chartByPathCache = object : androidx.collection.LruCache<String, Chart>(64) {}
 
     fun openAirport(icao: String) {
         currentAirport = null

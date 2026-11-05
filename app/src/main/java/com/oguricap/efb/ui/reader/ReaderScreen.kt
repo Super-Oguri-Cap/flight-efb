@@ -139,7 +139,14 @@ fun ReaderScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = chart.icao + " · " + ChartType.label(chart.chartType),
+                            text = buildString {
+                                append(chart.icao).append(" · ").append(ChartType.label(chart.chartType))
+                                val count = document?.pageCount ?: 0
+                                if (count > 1) {
+                                    append(" · 第 ").append(listState.firstVisibleItemIndex + 1)
+                                        .append('/').append(count).append(" 页")
+                                }
+                            },
                             style = MaterialTheme.typography.labelMedium,
                         )
                     }
@@ -194,30 +201,88 @@ fun ReaderScreen(
                             translationY = offset.y
                         }
                         .pointerInput(chart.id) {
-                            // 只拦截双指，单指留给列表滚动
+                            // 手势分配：
+                            //   双指       捏合缩放与平移
+                            //   放大后单指 推图；推到边界后剩余位移交给列表翻页
+                            //   未放大单指 不消费事件，列表照常滚动
+                            //   双击       在「适应屏宽」与 2.5 倍之间切换（单手可用）
+                            var lastTapAt = 0L
+                            var lastTapPosition = Offset.Zero
+
+                            // graphicsLayer 的变换顺序是「以中心为原点缩放，再平移」，
+                            // 屏幕坐标 = 中心 + (内容 - 中心) * scale + offset。
+                            // 要让焦点下方的内容保持不动，平移量必须按这个式子反解，
+                            // 否则双击放大会从屏幕中心「跳」一下。
+                            fun zoomAround(focus: Offset, nextScale: Float) {
+                                val clamped = nextScale.coerceIn(1f, 6f)
+                                val ratio = clamped / scale
+                                val centerX = size.width / 2f
+                                val centerY = size.height / 2f
+                                offset = if (clamped <= 1.01f) {
+                                    Offset.Zero
+                                } else {
+                                    offset * ratio + Offset(focus.x - centerX, focus.y - centerY) * (1f - ratio)
+                                }
+                                scale = clamped
+                                offset = PageGeometry.clampOffset(
+                                    offset,
+                                    scale,
+                                    size.width.toFloat(),
+                                    size.height.toFloat(),
+                                )
+                            }
+
                             awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
+                                val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                var moved = false
+                                if (scale > 1.01f) firstDown.consume()
                                 do {
                                     val event = awaitPointerEvent()
-                                    if (event.changes.count { it.pressed } >= 2) {
+                                    val pressed = event.changes.count { it.pressed }
+                                    if (pressed >= 2) {
+                                        moved = true
                                         val zoom = event.calculateZoom()
                                         val pan = event.calculatePan()
                                         val centroid = event.calculateCentroid(useCurrent = true)
-                                        if (zoom != 1f) {
-                                            val next = (scale * zoom).coerceIn(1f, 6f)
-                                            offset = if (next <= 1.01f) {
-                                                Offset.Zero
-                                            } else {
-                                                offset + centroid * (1f - next / scale) + pan
-                                            }
-                                            scale = next
-                                            offset = PageGeometry.clampOffset(offset, scale, size.width.toFloat(), size.height.toFloat())
-                                        } else if (scale > 1.01f) {
-                                            offset = PageGeometry.clampOffset(offset + pan, scale, size.width.toFloat(), size.height.toFloat())
+                                        zoomAround(centroid, scale * zoom)
+                                        if (pan != Offset.Zero) {
+                                            offset = PageGeometry.clampOffset(
+                                                offset + pan,
+                                                scale,
+                                                size.width.toFloat(),
+                                                size.height.toFloat(),
+                                            )
+                                        }
+                                        event.changes.forEach { it.consume() }
+                                    } else if (pressed == 1 && scale > 1.01f) {
+                                        val pan = event.calculatePan()
+                                        if (pan != Offset.Zero) moved = true
+                                        val maxX = size.width * (scale - 1f) / 2f
+                                        val maxY = size.height * (scale - 1f) / 2f
+                                        val rawX = offset.x + pan.x
+                                        val rawY = offset.y + pan.y
+                                        val boundX = rawX.coerceIn(-maxX, maxX)
+                                        val boundY = rawY.coerceIn(-maxY, maxY)
+                                        offset = Offset(boundX, boundY)
+                                        val leftoverY = rawY - boundY
+                                        if (leftoverY != 0f) {
+                                            listState.dispatchRawDelta(-leftoverY)
                                         }
                                         event.changes.forEach { it.consume() }
                                     }
                                 } while (event.changes.any { it.pressed })
+
+                                if (!moved) {
+                                    val now = System.currentTimeMillis()
+                                    val near = (firstDown.position - lastTapPosition).getDistance() < 120f
+                                    if (now - lastTapAt < 320L && near) {
+                                        zoomAround(firstDown.position, if (scale > 1.01f) 1f else 2.5f)
+                                        lastTapAt = 0L
+                                    } else {
+                                        lastTapAt = now
+                                        lastTapPosition = firstDown.position
+                                    }
+                                }
                             }
                         },
                 ) {
@@ -238,7 +303,7 @@ private fun PdfPageItem(document: PdfDocument, index: Int, invert: Boolean) {
     LaunchedEffect(document, index, invert) {
         // 渲染必须离开主线程；命中缓存时这里是一次纯查表
         val result = withContext(Dispatchers.IO) {
-            runCatching { document.render(index, invert) }
+            runCatching { Perf.timed("pdf_render_" + (index + 1)) { document.render(index, invert) } }
         }
         result.onSuccess { page = it }
         result.onFailure { renderError = it.message ?: it.toString() }

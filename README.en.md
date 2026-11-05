@@ -8,7 +8,7 @@ An offline EFB for Android: browse AIP charts, aircraft checklists, and QRH on t
 
 | Tab | Contents |
 |---|---|
-| Charts | Search by ICAO code, airport name, or chart title; group by chart type; open PDF with pinch zoom, colour inversion, and next-page pre-rendering |
+| Charts | Search by ICAO code, airport name, or chart title; group by chart type; open PDF with pinch zoom, double-tap zoom, one-finger pan, colour inversion, and next-page pre-rendering |
 | Checklists | 21 aircraft types, 2208 items, grouped as Airbus / Boeing / Other |
 | QRH | 16 procedures covering A320 ECAM items and Boeing memory items |
 

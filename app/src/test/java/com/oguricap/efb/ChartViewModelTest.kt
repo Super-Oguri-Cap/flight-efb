@@ -42,7 +42,7 @@ class ChartViewModelTest {
 
     private fun newViewModel(): ChartViewModel {
         val app = ApplicationProvider.getApplicationContext<Application>()
-        return ChartViewModel(app, dispatcher)
+        return ChartViewModel(app).apply { io = dispatcher }
     }
 
     @Test

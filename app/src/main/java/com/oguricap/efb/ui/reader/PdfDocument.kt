@@ -87,7 +87,11 @@ class PdfDocument(
         }
     }
 
-    // 调用方必须已经持有锁
+    // 调用方必须已经持有锁。
+    // PdfRenderer.Page.render() 只接受 ARGB_8888，给它 RGB_565 会抛
+    // IllegalArgumentException("Unsupported pixel format")（真机实测）。
+    // 缓存仍以 RGB_565 存放（省一半内存）：8888 渲染完成后一次性转换，
+    // 反色在这个转换步骤里做，临时 8888 位图立刻回收。
     private fun renderUncached(index: Int, invert: Boolean): RenderedPage {
         renderer.openPage(index).use { page ->
             val size = PageGeometry.fitWidth(
@@ -97,16 +101,17 @@ class PdfDocument(
             )
             val width = size.width
             val height = size.height
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
-            // PdfRenderer 只画内容不铺底色，先涂白，否则透明区域会变成黑块
-            bitmap.eraseColor(Color.WHITE)
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            if (!invert) return RenderedPage(bitmap, width, height)
-
-            val inverted = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
-            Canvas(inverted).drawBitmap(bitmap, 0f, 0f, invertPaint)
-            bitmap.recycle()
-            return RenderedPage(inverted, width, height)
+            val raw = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            try {
+                // PdfRenderer 只画内容不铺底色，先涂白，否则透明区域会变成黑块
+                raw.eraseColor(Color.WHITE)
+                page.render(raw, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                val target = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                Canvas(target).drawBitmap(raw, 0f, 0f, if (invert) invertPaint else null)
+                return RenderedPage(target, width, height)
+            } finally {
+                raw.recycle()
+            }
         }
     }
 

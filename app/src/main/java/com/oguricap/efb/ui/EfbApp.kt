@@ -65,9 +65,16 @@ fun EfbApp(
     var tabKey by rememberSaveable { mutableStateOf(Tab.key(Tab.Charts)) }
     val tab = Tab.fromKey(tabKey)
 
-    // 航图栈：search / airport / reader / settings
+    // 航图栈：search / airport / reader / settings。
+    // 机场页的参数（四字码）与阅读页的参数（文件路径）必须分开保存：
+    // 共用一个变量的话，从阅读页返回机场页时变量里仍是文件路径，
+    // 机场页会拿它当四字码查询，得到「0 张图」的死页面。
     var chartPage by rememberSaveable { mutableStateOf(PAGE_SEARCH) }
-    var chartArg by rememberSaveable { mutableStateOf("") }
+    var chartIcao by rememberSaveable { mutableStateOf("") }
+    var chartFile by rememberSaveable { mutableStateOf("") }
+    // 阅读页是从哪儿打开的：搜索页（图名命中）还是机场页。
+    // 返回键必须回到来路，否则用户从搜索结果打开的图，退回机场页是另一个上下文。
+    var readerFromSearch by rememberSaveable { mutableStateOf(false) }
 
     // 检查单栈
     var checklistPage by rememberSaveable { mutableStateOf(PAGE_LIST) }
@@ -80,23 +87,27 @@ fun EfbApp(
     val referenceVm: ReferenceViewModel = viewModel()
 
     // 重建后当前机场的图还没加载，补一次
-    LaunchedEffect(chartPage, chartArg) {
-        if (chartPage == PAGE_AIRPORT && chartArg.isNotEmpty() && vm.currentAirport?.icao != chartArg) {
-            vm.openAirport(chartArg)
+    LaunchedEffect(chartPage, chartIcao) {
+        if (chartPage == PAGE_AIRPORT && chartIcao.isNotEmpty() && vm.currentAirport?.icao != chartIcao) {
+            vm.openAirport(chartIcao)
         }
     }
 
-    // 阅读页只保存文件路径，重建后按路径从当前机场的图里找回 Chart
-    val readerChart: Chart? = if (chartPage == PAGE_READER && chartArg.isNotEmpty()) {
-        vm.currentCharts.firstOrNull { it.file == chartArg }
+    // 阅读页只保存文件路径，重建后按路径从当前机场的图里找回 Chart；
+    // 从搜索结果直接打开时机场图没在手边，退回索引全局查询
+    val readerChart: Chart? = if (chartPage == PAGE_READER && chartFile.isNotEmpty()) {
+        vm.currentCharts.firstOrNull { it.file == chartFile }
+            ?: vm.chartByPath(chartFile)
     } else {
         null
     }
 
     fun chartBack() {
-        chartPage = when (chartPage) {
-            PAGE_READER -> if (chartArg.isNotEmpty()) PAGE_AIRPORT else PAGE_SEARCH
-            else -> PAGE_SEARCH
+        when (chartPage) {
+            PAGE_READER -> {
+                chartPage = if (readerFromSearch) PAGE_SEARCH else PAGE_AIRPORT
+            }
+            else -> chartPage = PAGE_SEARCH
         }
     }
 
@@ -156,11 +167,12 @@ fun EfbApp(
                         onRequestStorage = onRequestStorage,
                         onOpenAirport = { icao ->
                             vm.openAirport(icao)
-                            chartArg = icao
+                            chartIcao = icao
                             chartPage = PAGE_AIRPORT
                         },
                         onOpenChart = { chart ->
-                            chartArg = chart.file
+                            chartFile = chart.file
+                            readerFromSearch = true
                             chartPage = PAGE_READER
                         },
                         onOpenSettings = { chartPage = PAGE_SETTINGS },
@@ -168,10 +180,11 @@ fun EfbApp(
 
                     PAGE_AIRPORT -> AirportScreen(
                         vm = vm,
-                        icao = chartArg,
+                        icao = chartIcao,
                         onBack = { chartBack() },
                         onOpenChart = { chart ->
-                            chartArg = chart.file
+                            chartFile = chart.file
+                            readerFromSearch = false
                             chartPage = PAGE_READER
                         },
                     )
