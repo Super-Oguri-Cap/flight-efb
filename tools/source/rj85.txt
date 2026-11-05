@@ -1,0 +1,94 @@
+Avro RJ70/85/100
+--Cockpit Preparation--
+Circuit breakers=Checked in
+Radar=Off
+Electric / GPU / APU=Set
+Panels & Pedestal=Checked
+Oxy Valve and Pressure=Checked
+--Crew at Station--
+Pins & Covers=On board
+Aircraft log=Checked
+Park Brake=Set
+Fuel quantity & Flow meters=Checked
+Altimeters=Checked
+Pressurisation=Checked
+IRS=Checked
+FMS=Checked
+Flight Guidance=Checked
+**Checklist complete to the line
+T/O Data=Checked
+Trims=Set
+T/O Briefing=Perfomed
+--Before Engine Start---
+Fasten Belts=On
+Packs & APU Air=Off
+Beacon / Strobes=On
+Fuel Panel=Set
+Doors / Windows=Closed / Removed
+Slides=Armed
+TCAS=TA/RA
+--After Engine Start--
+Generators=Online
+Brake Fans=Auto
+Hydraulics=On / Auto
+Ice Protection=As Required
+Air Conditioning=As Required
+Auto Throttle=Armed
+Flaps="_" Selected
+Flight Controls=Checked
+Clear Signal=Received
+--Taxi Check--
+ATC Clearance=Verified
+Thrust & T/O Data=Rechecked
+Flaps & Speeds=Checked
+T/O Briefing=Completed
+Config=Checked
+MWS=Checked
+Cabin=Secured
+--System Check--
+Eng Air=On
+APU Air=Off
+Packs=On (pressurising)
+APU=Stop
+Lights=Off
+Flaps=0°
+Gear=Up
+TRP=Climb
+Altimeters=X-Checked
+--Preparation for Approach--
+FMS=Checked
+Actual Fuel=Checked
+Landing Data=Set / Checked
+Land Flap / Steep Approach=As Required
+Pressurisation=Set
+Briefing=Completed
+--After Landing--
+Gust Lock / Airbrake=Set / In
+Radar=Off
+APU=As Required
+Flaps=0°
+--Parking--
+Park Brake=Set
+Slides=Disarmed
+XPDR / TCAS=STBY
+Hydraulics=Off
+Generators=Off / Reset
+Air Conditioning=As Required
+Engine Shutdown=Perfomed
+Fasten Belts=Off
+External Lights=Off
+Brake Fans=As Required
+Fuel Pumps=As Required
+Ignition=Off
+Ice Protection=Engine A/I On / Heaters Off
+--Leaving Aircraft--
+Emergency Lights=Off
+Elevator Trim=Pos 1
+Avionics=Off
+Fuel Pump=Off
+Air Conditioning=Off
+Lights & Notices=Off
+APU=Off
+Electrics=Off
+EFB Storage Box=Locked
+--Checklist by laxentis, based on JustFlight's documentation--

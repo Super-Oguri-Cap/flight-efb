@@ -1,0 +1,141 @@
+Airbus A310 (iniBuilds)
+--Before Start--
+Parking Brake=SET
+GPU=CONNECTED
+Battery 1=ON
+Battery 2=on
+Battery 3=on
+Ext Power=on
+APU Master SW=on
+APU Start=ON
+APU Bleed=ON
+**When APU Avail is lit.
+No Smoking=ON
+Cabin Lights=ON
+Request Clearance=DONE
+Transponder=SET
+IRS 1=ON
+IRS 2=ON
+IRS 3=ON
+IRS Sys=HDG
+Insert From/To on FMS=DONE
+Click ALIGN IRS on FMS=DONE
+**Wait before the IRS Align Ends
+Oxygen lo pr Supply=ON
+FMC Flight Plan=DONE
+SeatBelts=ON
+Flt Rcdr=GND CTL ON
+Strobe Light=AUTO
+NAV/Logo Light=1
+Pitch Trim=ON
+Yaw Damper=on
+ATS Trim=on
+Fuel Pumps=on
+Probe Heat=on
+Window Heat=on
+Emerg Lights=arm
+DH=SET
+Altimeters=SET
+Landing Elevation=on
+Ext Power=off
+FD=BOTH ON
+--Engine Start--
+Beacon Light=ON
+Request Pushback=DONE
+Ignition=START A
+Start 2=OPEN
+ENG 2 Fuel Mix=ON when n2 > 20%
+Start 1=OPEN
+ENG 1 Fuel Mix=ON when n2 > 20%
+Ignition=OFF
+APU Bleed=OFF
+APU Master SW=OFF
+--Taxi--
+Request Taxi Clearance=DONE
+Taxi Lights=ON
+--Before Take Off--
+Runway Lights=ON
+Landing Lights=ON
+Autopilot=SET
+TCAS=ON
+Flaps=SET
+Grnd Spoilers=ARM
+W/S Pred=SET
+Strobe Lights=ON
+Wing Lights=ON
+Landing Lights=ON
+Cabin Lights=OFF
+Autobrake=MAX
+Request Take Off Clearance=DONE
+--After Take Off / Climb--
+Landing Gear=UP
+Flaps=UP
+Grnd Spoilers=Retract
+Taxi Lights=OFF
+Runway Lights=OFF
+Cabin Lights=ON
+Throttle=CLB Detent
+**If you're using A/T with managed speed
+AP1=Engage as required
+Altimeter=SET TO STD 
+**At transition altitude
+Landing Lights=OFF above 10.000ft
+Seatbelts=OFF when cruise alt is reached
+--Descent / Approach--
+Landing Lights=ON below 10.000ft
+Seatbelts=ON
+Speed=ESTABLISH 210 Kt
+Taxi Lights=ON
+Runway Lights=ON
+Grnd Spoilers=ARM
+Autobrake=MED
+ILS Freq=SET in Panel
+**ILS frequency must be manually set in center panel
+Flaps=FLAPS 1
+Speed=ESTABLISH 180 Kt
+Flaps=FLAPS 2
+Landing Gear=DOWN
+Landing 3 Green=FLAPS 3
+Speed=ESTABLISH 160 KIAS
+Flaps=FULL
+--Final Glideslope Descent--
+Cabin Lights=OFF
+Speed=ESTABLISH 145 KIAS
+LOC=ON
+APPR=ON
+**Capture from below the diamond on PFD
+--Landing--
+Landing Speed=around 130-140kt
+After Touchdown=REVERSE THRUST
+At 60kt=CANCEL REVERSE THRUST
+--After Landing--
+Grnd Spoiler=DISARMED
+Flaps=RETRACT
+Landing Lights=OFF
+Taxi Lights=ON
+Strobe Lights=OFF
+Wing Lights=OFF
+Cabin Lights=ON
+APU Master SW=ON
+APU Start=DONE
+Request Taxi to Gate=DONE
+Taxi Lights=OFF AT GATE
+Runway Lights=OFF AT GATE
+--Shutdown--
+Parking Brakes=SET
+Thrust=Idle Detent
+APU Bleed=ON
+**When APU Avail is lit
+Electrical Power=ESTABLISH
+Engine Master 1 & 2=OFF
+**Master 2 OFF, wait for spool down, Master 1 OFF
+Beacon Lights=OFF
+Nav Lights=OFF
+Passenger Signs=OFF
+Doors=OPEN
+FD=BOTH OFF
+Fuel Pumps=ALL OFF
+IRS 1/2/3=OFF
+APU=AS REQUIRED
+Batteries=AS REQUIRED
+--Checklist by tibonev--

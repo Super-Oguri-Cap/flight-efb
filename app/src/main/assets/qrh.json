@@ -1,0 +1,236 @@
+{
+ "schemaVersion": 1,
+ "notice": "本文件为供模拟飞行使用的自编处置条目，依据 A320 公开的 ECAM 体系与波音公开的记忆项目结构整理，for simulation only。不是空客或波音的受控文件，不得用于真实飞行。",
+ "sections": [
+  {
+   "id": "a320-ecam-memory",
+   "aircraft": "A320",
+   "category": "memory",
+   "title": "A320 记忆项目",
+   "note": "必须不查手册立即执行，执行完再翻 ECAM。",
+   "entries": [
+    {
+     "ata": "70",
+     "title": "ENG 1(2) FIRE",
+     "condition": "发动机火警按钮灯亮，ECAM 显示 ENG FIRE",
+     "memory": true,
+     "actions": [
+      "THRUST LEVER .............. IDLE",
+      "ENG MASTER ................ OFF",
+      "ENG FIRE PUSHBUTTON ....... FAULT LIGHT ON",
+      "AGENT 1 ................... SQUIB",
+      "AGENT 2 ................... SQUIB（如需要，等待 30 秒后）"
+     ],
+     "inop": "对应发动机、发电机、液压泵"
+    },
+    {
+     "ata": "70",
+     "title": "ENG 1(2) FAIL",
+     "condition": "发动机失效，ECAM 显示 ENG FAIL",
+     "memory": false,
+     "actions": [
+      "THRUST LEVER .............. IDLE",
+      "ENG MASTER ................ OFF",
+      "ENG 1(2) BLEED ............ OFF",
+      "FADEC ..................... 按需"
+     ],
+     "inop": "对应发动机"
+    },
+    {
+     "ata": "29",
+     "title": "HYD G SYS LO PR",
+     "condition": "绿液压系统低压",
+     "memory": false,
+     "actions": [
+      "确认 ECAM HYD 页面压力",
+      "PTU ....................... 检查状态",
+      "如压力不恢复，按 ECAM 后续行执行"
+     ],
+     "inop": "绿液压驱动的起落架、刹车、部分飞控"
+    },
+    {
+     "ata": "24",
+     "title": "ELEC EMER CONFIG",
+     "condition": "仅剩电瓶供电，ECAM 显示 ELEC EMER CONFIG",
+     "memory": false,
+     "actions": [
+      "LAND ASAP 视为红色告警",
+      "按 ECAM 步骤逐项执行",
+      "准备在最近合适机场着陆"
+     ],
+     "inop": "多数电气负载、自动驾驶、部分仪表"
+    },
+    {
+     "ata": "27",
+     "title": "ALPHA FLOOR",
+     "condition": "A FLOOR 显示，自动推力进入保护",
+     "memory": false,
+     "actions": [
+      "THRUST LEVER .............. TOGA",
+      "如不需要，侧杆推杆断开保护"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "34",
+     "title": "TCAS RA",
+     "condition": "TCAS 显示 Resolution Advisory",
+     "memory": true,
+     "actions": [
+      "AP ......................... OFF",
+      "A/THR ...................... OFF",
+      "按 RA 指令操作俯仰，不要反向修正",
+      "脱离冲突后恢复"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "27",
+     "title": "STALL",
+     "condition": "失速警告触发",
+     "memory": true,
+     "actions": [
+      "NOSE DOWN ................. 推杆至警告停止",
+      "THRUST .................... TOGA",
+      "保持机翼水平，等待速度恢复"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "80",
+     "title": "ENG 1(2) DUAL FAILURE",
+     "condition": "双发失效",
+     "memory": false,
+     "actions": [
+      "立即建立最佳滑翔速度",
+      "寻找备降场",
+      "按 ECAM 执行重启程序（如高度允许）"
+     ],
+     "inop": "全部发动机相关系统"
+    }
+   ]
+  },
+  {
+   "id": "a320-emergency",
+   "aircraft": "A320",
+   "category": "procedure",
+   "title": "A320 独立应急程序",
+   "note": "ECAM 不自动显示，需要主动查阅。",
+   "entries": [
+    {
+     "ata": "00",
+     "title": "EMER DESCENT",
+     "condition": "客舱失压，需要紧急下降",
+     "memory": true,
+     "actions": [
+      "OXYGEN MASK ............... ON",
+      "DESCENT ................... 立即建立",
+      "THRUST LEVER .............. IDLE",
+      "SPEED BRAKE ............... FULL",
+      "目标高度 ................... 10000 ft 或最低安全高度",
+      "ATC ....................... 通报"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "29",
+     "title": "DUAL HYD FAIL",
+     "condition": "两套液压系统失效",
+     "memory": false,
+     "actions": [
+      "LAND ASAP",
+      "按 ECAM 判断剩余操纵能力",
+      "准备在最近机场着陆，考虑跑道长度与刹车能力"
+     ],
+     "inop": "对应液压驱动的飞控与起落架"
+    },
+    {
+     "ata": "24",
+     "title": "DUAL ADR FAULT",
+     "condition": "两个大气数据基准失效",
+     "memory": false,
+     "actions": [
+      "ADR 1(2)(3) ................ 按 ECAM 重置",
+      "如仍失效，使用剩余 ADR 与备用仪表",
+      "考虑降低高度至非 RVSM 空域"
+     ],
+     "inop": "部分自动飞行与显示"
+    },
+    {
+     "ata": "27",
+     "title": "UNRELIABLE AIRSPEED",
+     "condition": "空速指示不可靠",
+     "memory": true,
+     "actions": [
+      "AP ......................... OFF",
+      "A/THR ...................... OFF",
+      "PITCH ..................... 10° 或按重量查表",
+      "THRUST .................... CLB",
+      "不要追空速表，按俯仰与推力飞行"
+     ],
+     "inop": "自动飞行、部分 ADR 相关系统"
+    }
+   ]
+  },
+  {
+   "id": "boeing-memory",
+   "aircraft": "737 / 747 / 727",
+   "category": "memory",
+   "title": "波音记忆项目",
+   "note": "各机型共通的必须立即执行条目，具体数值以对应机型手册为准。",
+   "entries": [
+    {
+     "ata": "70",
+     "title": "ENGINE FIRE / SEVERE DAMAGE",
+     "condition": "发动机火警或严重损坏",
+     "memory": true,
+     "actions": [
+      "THRUST LEVER .............. IDLE",
+      "START LEVER / FUEL CUTOFF . CUTOFF",
+      "FIRE HANDLE ............... PULL",
+      "FIRE BOTTLE ............... DISCHARGE"
+     ],
+     "inop": "对应发动机"
+    },
+    {
+     "ata": "27",
+     "title": "STALL",
+     "condition": "失速警告",
+     "memory": true,
+     "actions": [
+      "推杆至警告停止",
+      "保持机翼水平",
+      "最大推力",
+      "改出后恢复"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "34",
+     "title": "TCAS RA",
+     "condition": "TCAS 决断咨询",
+     "memory": true,
+     "actions": [
+      "AP ......................... OFF",
+      "A/T ........................ OFF",
+      "按 RA 指令操作，不要反向修正"
+     ],
+     "inop": "无"
+    },
+    {
+     "ata": "00",
+     "title": "CABIN ALTITUDE / EMERGENCY DESCENT",
+     "condition": "客舱高度警告",
+     "memory": true,
+     "actions": [
+      "OXYGEN MASK ............... ON",
+      "THRUST LEVER .............. IDLE",
+      "SPEED BRAKE ............... FULL",
+      "建立紧急下降至 10000 ft 或最低安全高度"
+     ],
+     "inop": "无"
+    }
+   ]
+  }
+ ]
+}

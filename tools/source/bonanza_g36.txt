@@ -1,0 +1,86 @@
+Beechcraft Bonanza G36
+--Pre-Flight--
+Walk around=DONE
+Parking Brake=ON
+Circuit Breakers=PUSHED
+Magnetos=OFF
+Avionics=OFF
+Battery 1=OFF
+Battery 2=OFF
+Alternator 1=OFF
+Alternator 2=OFF
+Pitot Heat=OFF
+Lights=ALL OFF
+Throttle=IDLE
+Propeller=FULL AFT
+Mixture=CUT OFF
+--Engine Start--
+Battery 1=ON
+Battery 2=ON
+Beacon Lights=ON
+Strobe Lights=ON
+Fuel Selector=FULLEST TANK
+Cowl Flaps=OPEN
+Propeller=FULL FORWARD
+Mixture=FULL RICH
+Throttle=FULL FORWARD
+Aux Fuel Pump=ON FOR 5s / OFF
+Throttle=1/2 INCH OPEN
+Magnetos = START (MAX 30s)
+Magnetos=BOTH
+Avionics=ON
+--Before Taxi--
+Flight Controls=CHECKED
+Test Magnetos=DONE
+Test Flaps=DN/UP
+Nav Lights=ON
+Taxi Lights=ON
+Altimeter=SET
+Announce / Request Taxi=DONE
+Parking Brake=RELEASE
+--Before Takeoff--
+Landing Lights=ON
+Pitot Heat=AS REQUIRED
+Cowl Flaps=AS REQUIRED
+Flaps=SET APH FOR SHORT TO
+Brakes=FULL
+Request Takeoff=AS REQUIRED
+--Take Off--
+Throttle=FULL
+Rotate=62 KIAS +/- 5
+--After Take Off-
+Climb=85-100 KIAS
+Gear=UP
+Flaps=RETRACTED
+Landing Lights=OFF
+--Cruise--
+Max Throttle=25 MAN
+Max Propeller=2.500 RPM
+Cowl Flaps=CLOSE
+Fuel Selector=SWITCH EVERY 30min.
+--Approach / Landing--
+Landing Lights=ON
+Fuel Selector=FULLEST TANK
+Cowl Flaps=AS REQUIRED
+Mixture=FULL RICH
+Propeller=FULL FORWARD
+Landing Gear=DOWN
+Flaps=DOWN
+--After Landing--
+Flaps=RETRACTED
+Cowl Flaps=CLOSE
+Landing Lights=OFF
+Taxi Lights=ON
+Pitot Heat=OFF
+--Shutdown--
+Parking Brake=ON
+Lights=ALL OFF
+Avionics=OFF
+Throttle=1k RPM
+Mixture=CUT OFF
+Magnetos=OFF
+Alternator 2=OFF
+Alternator 1=OFF
+Battery 2=OFF
+Battery 1=OFF
+--Checklist by tibonev--

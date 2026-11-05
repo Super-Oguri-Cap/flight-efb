@@ -1,0 +1,100 @@
+BeechCraft Baron 58
+--Pre-Flight--
+Walk around=DONE
+Parking Brake=ON
+Circuit Breakers=PUSHED
+Master Battery=OFF
+Magnetos L ENG=OFF
+Magnetos R ENG=OFF
+Master Avionics=OFF
+L Alternator=OFF
+R Alternator=OFF
+Throttle=IDLE
+Prop Level=IDLE
+Prop Sync=OFF
+Fuel Mix=IDLE
+--Before Start--
+Passenger Briefing=DONE
+Seats and Belts=DONE 
+Flight Plan=CHECKED
+--Start--
+Battery=ON
+Beacon Lights=ON
+Strobe Lights=ON
+Prop Level=MAX
+Test Flaps=UP/DN/UP
+Fuel Mix=FULL
+Fuel Boost R=ON
+Throttle R=MAX FOR 5S
+Fuel Boost R=OFF 
+Magnetos R=Both
+Yell 'Clear Prop Right'=DONE
+Start Right Engine=DONE
+Fuel Boost L=ON
+Throttle L=MAX FOR 5S
+Fuel Boost L=OFF 
+Magnetos L=Both
+Yell 'Clear Prop Left'=DONE
+Start Left Engine=DONE
+R Alternator=ON
+L Alternator=ON
+Master Avionics=ON 
+Cowls=OPEN
+Prop Sync=ON
+Transpoder=STD BY
+Yaw Damper=ON
+Set Gyro to Mag Hdg=DONE
+Configure Flt Plan / GPS=DONE 
+--Taxi--
+Windows Closed=DONE 
+Doors Closed=DONE
+Check Fuel=DONE
+Test Magnetos=DONE 
+Check Oil Press / Temp=DONE
+Check Amp=DONE 
+Taxi Lights=ON 
+Nav Lights=ON
+--Before Take Off--
+Flight Controls=CHECKED
+Flight Instruments=CHECKED
+COM/NAV=SET
+Transpoder=ON
+Flaps=DN 1 NOTCH
+--After Take Off--
+Flaps=RETRACTED
+Gear=RETRACTED
+Taxi Lights=OFF 
+A/P as Required=ON 
+--Before Landing--
+Flaps as Required=DONE 
+Gear=DOWN
+ILS Freq=SET
+COM/VLOC=VLOC 1
+Land Lights=ON 
+--After Landing--
+Taxi Lights=ON 
+Flaps=RETRACTED
+Transponder=STD BY
+--Shutdown--
+Parking Brake=ON
+Throttle=IDLE
+Transponder=OFF
+Master Avionics=OFF
+Prop Sync=OFF
+R Alternator=OFF
+L Alternator=OFF
+Beacon Lights=OFF 
+Strobe Lights=OFF
+Nav Lights=OFF
+Taxi Lights=OFF
+Land Lights=OFF
+Prop Level R=IDLE
+Magnetos R=OFF
+Fuel Mix R=IDLE
+Prop Level L=IDLE
+Magnetos L=OFF
+Fuel Mix L=IDLE
+Chocks=PLACED
+Doors=OPEN
+Master Battery=OFF
+--Checklist by tibonev--

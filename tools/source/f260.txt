@@ -1,0 +1,71 @@
+SIAI-Marchetti SF-260D (Jrollon/X-Plane)
+--Preflight--
+Wht/Bal=Complete
+Maint/Preflt-Walk=No issues
+Batt/Ign/Avionics/Ext Lhts=Off
+Pwr=Mix cutoff, prop feather, thrtl clsd
+--Engine Start--
+Batt/Nav Lhts=On
+L/G=Dwn, 3 grn
+Fuel=Chkd, cutoff switch on
+Prkg Brk=On
+Pwr=Prop high rpm, mix lean
+Beacon=On
+Fuel=Emptiest Main Tank
+Fuel=Mix rich & pump as req
+Prop Clr=Thrtl 10%, egn start
+Oil Press Grn=Pump off, altr on
+--Before Taxi--
+Avionics=On
+Pwr=Thrtl idle, mix lean
+Flaps/Trim=Set
+Alt, Radios, Flt Pln, Xpdr=Set
+Hdg=Rwy
+Flt Cntrls=Chkd
+--Taxi--
+Lndg Lhts=On
+Brks=Tst
+--Run Up--
+Prkg Brk=On
+Fuel=Pump on, fullest main tank
+Pwr=Mix rich, prop high rpm, thrtl 2100rpm
+Prop=Cycle 3x
+Carb/Mags=Chkd
+Pwr=Thrtl idle
+--Before Takeoff--
+Instr=Chkd
+AP/FD=Off/As desired
+Canopy=Secure
+--Takeoff--
+Xpdr/Strobes=ALT/On
+Clr Rwy=L/G up
+--Climb--
+500'=Flaps up, strobes off
+1500'=Pump off, lndg lht off
+Alt/Mix/Fuel=Set/Lean/Bal thru clb
+--Cruise--
+Fuel=Bal
+Instr=Monitor
+Pwr=Set
+--Descent--
+Alt=Set
+Pwr=Adjust thru desc
+--Downwind--
+Lndg/Strobes & Pump=On
+Fuel=Fullest main tank
+Instr=Chkd
+Carb=As req
+Flaps/Gear=Set
+Autopilot=Off
+--After Landing--
+Flaps/Trim=Up/Neutral
+Strobes/Pump=Off
+Xpdr=On
+--Shutdown--
+Prkg Brk=On
+Avionics/Xpdr=Off/Stby
+Mags=Chkd
+Fuel=Mix and fuel cut off
+Mags/Lhts/Altr/Batt=Off
+Postflt-Walk=Complt
+--Checklist by Lightdasher360, thanks to JRollon/Simcoders docs--

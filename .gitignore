@@ -1,0 +1,33 @@
+# 构建产物
+.gradle/
+.kotlin/
+build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 签名证书绝不入库，单独备份
+keystore/
+*.jks
+*.keystore
+
+# 航图 PDF 不入库，测试夹具除外
+*.pdf
+!app/src/test/resources/*.pdf
+
+# 容器与安装包
+*.apk
+*.aab
+*.zip
+*.tar.gz
+
+# 编辑器
+.vscode/
+*.swp
+
+# 临时
+_tmp/

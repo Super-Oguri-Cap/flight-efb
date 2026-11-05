@@ -1,0 +1,73 @@
+Robin DR400/100 Cadet
+--Pre-Flight--
+Key Starter=OFF
+Battery=OFF
+Electrical=OFF
+Parking Brake=SET
+Flaps=DOWN
+--Before Start--
+Battery=ON
+Alarm=TEST (DAY / NIGHT)
+Fuel Valve=OPEN
+Fuel Quantity=CHECK
+Anticollision Lights=ON
+--Engine Start--
+Carb Heat=PUSHED
+Mixture=FULL
+Fuel Pump=ON
+Key Starter=BOTH
+Throttle=1cm IN
+Starter=ON
+Throttle=1k RPM
+Oil Press=CHECK
+--Before Taxi--
+Fuel Pump=OFF
+Alt Switch=ON
+Avionics=ON
+Radios=ON
+Transponder=STD BY
+Altimeter=SET 
+Check Magnetos=DONE
+--Taxi--
+Taxi Lights=ON
+Landing Lights=AS REQUIRED
+Max RPM=1.2k
+--Take Off--
+Flaps=1 NOTCH DOWN
+Fuel Pump=ON
+Transponder=SET
+Landing Lights=ON
+Rotate=100km/h
+Flaps=RETRACT above 300ft
+Fuel Pump=OFF above 300ft
+--Flight--
+Landing Lights=OFF above 1000ft
+Taxi Lights=OFF above 1000ft
+RPM=2.5k MAX
+--Approach--
+Flaps=FULL 
+Fuel Pump=ON
+Landing Lights=ON
+Carb Heat=PULLED
+Approach Speed=130km/h
+--Landing--
+Landing Speed=110km/h
+--After Landing--
+Flaps=RETRACTED
+Carb Heat=PUSHED
+Fuel Pump=OFF
+Landing Lights=OFF
+Taxi Lights=ON
+--Shutdown--
+Parking Brake=ON
+Throttle=1.2k rpm MAX
+Mixture=CUT OFF
+Key Starter=OFF
+Alternator=OFF
+Radios=OFF
+Avionics=OFF
+Battery=OFF
+Lights=ALL OFF
+Fuel Pump=OFF
+Flaps=FULL DOWN 
+--Checklist by tibonev--

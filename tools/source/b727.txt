@@ -1,0 +1,262 @@
+Boeing 727 (FlyJSim)
+--Exterior Safety Inspection--
+Airplane Exterior=Clr
+Maint Status & Dispatch Deviations=Chkd
+Weight/Balance=chkd
+Charts & Docs=Secure
+--Cockpit Safety Inspection--
+Flt Ctrl Hyd Pwr=On, grds clsd
+Alt Flaps=Off, grd clsd
+Xponder/Radar=Off
+Landing Gear Lever=Down
+Air Cond=Off
+Hyd Sys B=Off
+--Preliminary Cockpit Preparation Initial--
+External/APU Electrical Pwr=Off
+Battery=On, check DC meters (min 22)
+Essential Power=Standby (2min max w/o equip cooling), check DC meters
+Essential Power Selector=Any engn gen
+APU Fire=Push in
+APU Auto Fire Shutdown=Armed, grd clsd
+APU Fire Warn=Tst (not over 60 sec), reset
+Flap Indic Lhts=Test, rtrn
+--APU Start--
+APU=On
+AC Meters Selector=APU
+APU Field=Clsd
+APU Master=Start
+AC Meters=Check (volt stable 115+/-5, freq stable 400+/-8)
+APU EGT=In green band
+APU Generator=Close (wait 1min APU stable before applying load)
+Ess Pwr=APU
+--External Power Start--
+AC Meters Selector=Ext pwr, chkd
+AC Connected Lht Illum=External power on
+AC Meters=Check (volt stable 115+/-5, freq stable 400+/-8)
+Essemtial Power Selector=Ext pwr
+Air Cart=Requested
+--Preliminary Cockpit Preparation Flight Engineer--
+Pressurization=Set
+Mode Selector=Auto
+FLT/GRD=Grd
+Air Cond (if required)=On (if APU, wait 1min before 1st pak on)
+APU EGT=Green band
+Air Temp=Check (each pos, observe temps), then main supply
+Cabin Temp Controls=Auto/Set
+Duct Ovrht Lhts=Check
+Engn Bleed Air=All open
+Auto Pak Trip Armed Lht=Check
+Pak TRIP OFF Lhts=Check
+Duct Press=Normal for source
+Left/Right Pak Cooling Doors=Full open
+Ammeter=Within pak limits (max 120 apu, max 155 ext)
+--Preliminary Cockpit Preparation Pilots--
+Emergency Exit Lhts=On, check, off
+Window Heat=All on, ovrht tst, all off
+Duct Ovrht Lht=Check
+Duct Temp=Check (all pos observing temp in each), then engn 2
+Valve Pos Lht=Left, open engn anti-ice, then cowl, right, wing
+Wing Anti-Ice=Ground tst, observe lhts
+Valve Pos=Right, close engn anti-ice, off
+Pitot Static Heat=On, check ammeter, off
+Navigation, Wing/Tail lhts=On, as req
+Engn Fire=Handles in, bottle xfer left, tst alarm, off/lhts out
+Cargo Fire Det=AB, tst, then armed
+Forward Engn Instr=Check
+Landing Gear Annun=Check
+Speed Break Lever=Up
+Flap lever/Indic=Agree
+Hyd Brake Press=Prime until aprx 1000, set parking brake
+--Preliminary Cockpit Preparation Flight Engineer continued--
+Galley Power (if required)=On
+Crew/Pass Oxy Press=Check
+Pass Oxy=Normal
+Auto Pak Trip Switch=Cutout
+Zone Temp Cntl=Centered
+Strut/Lower Aft Body Ovrht=Check, then tst
+APU Ammeter=Monitor
+DC Meters=Batt
+DC Ammeter=ext pwr aprox 0, apu aprx 0 or pulsing
+DC Meters=Ess tr, tr1, tr2, voltmeter 24.5-29.0 each pos
+DC Ammeter=Confirm positive amperage, rtrn ess tr
+Gen Drive=Discon grds clsd, lht illum
+Gen Drive Oil Temp=Rise/indic normal, in/ambient temp
+Bus-Tie Breaker & Field Lhts=Check
+KW/KVAR Meters=0kw
+Fuel Quant=Check indic, tst each tank
+Fwd Boost Pumps=On, observe lhts, off, repeat aft pumps
+Engn Xfeed=1/3 open;close, 2 close;open
+Fuel Shutoff=Open
+Fuel Heat/Icing=Check, heat switches on & off
+Sys A Pump=Low press lhts illum, shutoff grded, ovrht lht out
+Sys A Quant=Aprox 4.4
+Sys B=Quant "F", ovrht lht out
+Sys B Pump 1=On, observe press/lht, off
+Sys B Pump 2=On, observe press/lht, ground intercon open
+Sys B Pump=Both on, min 2800psi, check sys a/b quant remain normal
+Sys A/B Pump Lhts=A low press illum, B ovrht exting
+Standby Sys Quant=F, ovrht lht exting
+Sys A Rudder=Off, standby rudder off, observe lhts
+Standby Rudder=On, observe lhts, both on & grded
+CSD Cooler=Normal
+No Equip Cooling Lht=Exting
+Pneumatic Brake Press=Normal, observe 1100-1400lbs
+Door Warning Annun=Check
+Oil Press/Temp/Quant=Zeroed/norm/min for dispatch
+Mode=Man ac, lhts chkd, outflow vlv close, open, watch pointer
+Mode=Man dc, repeat previous, auto & manual lhts exting
+Fuel Dump Leading Edge Devices Position Annun=Check
+Flight Data Recorder=Set
+--Prior To Before Start--
+Fuel System=Set for start, one boost pump switch per main tank
+If #2 fuel greater than #1/3=Xfeed all open
+Hyd Press & Quantities=Normal
+Ground Interconnect=Close
+Sys B Pump=One off
+Takeoff Data Card=Review
+Stall Warning=Check
+Window Heat=On
+Pax Signs=On
+Emerg Exit Lhts=Armed & grded
+Xponder=Set, on
+Anti-Skid=On, parking brakes off, tst inbd/outbd, set parking brakes
+Pneumatic Brake Lever=Off & safe-tied
+Altitude Alert=Set
+GPWS=Tst
+Yaw Damp=On/Grded, tst lower, observe, rtrn center, repeat upper
+Radios, Flt Instr, Nav=Set departure
+Engn Controls=Reverse thrust down, thrust clsd, start cutoff
+Stab Trim=Set t/o
+Autopilot=Disengaged
+Rudder/Aileron Trim=Free & zero
+V2/Takeoff EPR Bugs=Set
+--Cleared For Engine Start--
+Doors=Check
+Beacon=On
+Galley Power=Off
+Air Cond=Off
+Start Press 20+ psi=Begin engn start
+--After Engine Start--
+APU=Close gen breakers, ess pwr each gen, gen 3, 1min timer APU off
+Ext Pwr=Ess gen3, close 1/2 breakers, ess gens2/1, close 3, ess gen3
+AC Meters=Verify volt/freq normal each gen, gen 3
+Galley Power/Air Cond=As desired
+All Remaining Fuel Boost Pumps=On, all low press lhts exting
+Hyd Sys A=Pump 1 off, 2 off, 1/2 on
+Ground Equip=Disconnect, check clr
+--Taxi Out--
+Pushback/Powerback or Straight Out=Call/Check clearance
+Flaps=Set
+Flt Controls=Check free movement
+Parking Brake=Release
+Taxi Lhts=On
+Anti-Ice=Close/Open as req
+Pitot Static Heat=On
+Nav/Flight/Engn Instr=Check
+Flt Control Warning Tst=Safety relay Bypass
+Speed Brake=Down, warning horn, in, release tst
+Fuel Heat=As req, off after 1min if on
+Other Hyd Sys B Pump=On, check norm press/quantities
+Elev Feel Diff Press/Rudder Load Limiter/No Equip Cool Lhts=Exting
+Engn 2/APU Bleed Air=Close
+Paks=On
+Flt/Grd=FLT (otflw vlv close, diff press aprox +10psi)
+Takeoff Briefing=Conduct
+--Cleared For Takeoff--
+Auto Pac Trip=Normal
+CSD Oil Cooler=Ground off
+Start Switches=Grded
+No Smoking Signs=On
+Xponder=On/Alt
+Landing/Strobe Lhts=On
+Taxi Lhts=Off
+Flt Director=Set departure
+Radar=On/5up
+--After Takeoff--
+Gear=Up & off
+Speed Brake=Up
+Flaps=Retract as req
+Anti-Ice=As req
+No Smoking Signs=Off
+Xponder=TA/RA
+Auto Pak Trim=Cutout
+Pressurization=chkd/Set
+Hydraulics=Press/Qty normal
+--Climb--
+Autopilot=As desired
+Thrust & operating systems=Set & monitor
+Cooling Doors=Adjust as needed under 40C
++10,000ft=Pax Signs & gasper fan off
++18,000ft=Landing lhts off and baro set standard/xchkd
+--Cruise--
+Thrust=Set
+Approach Briefing=Complete prior to descent
+--Descent--
+Standby Press=Set cab alt 200ft below destination airport
+Pak Cooling Doors=Full open
+Anti-Ice=As req
+Radio Altimeter=Set MDA, xcheck
+18,000ft=Landing lhts on, baro set/xchkd
+10,000ft=Pax signs & gasper fan as req
+Landing Data Card=Reviewed
+G/A EPR & VREF Bugs=Set
+Fuel=Set, all main pumps on
+Comm/Nav Radios, A/P & F/D=Set for approach
+Flaps=Extend
+--Approach & Landing--
+No Smoking & Strobe Lights=On
+Gear=Down, 3 green
+Flaps=Set
+Speed Brake=Detent
+A/P & F/D=Nav source
+--After Landing--
+Window Heat=As req
+Wing/Engn Anti-Ice=Close/As req
+No Smoking=Off
+Xponder=On
+Pitot Heat=Off
+Exterior Lhts=As req
+Radar=Off/0 degrees
+Speed Brake=Up
+Flaps=Up
+Stab trim=0 units
+Radios=Set ground
+Fuel=Set taxi (leave one boost pump on per tank of operating engn)
+Gnd Interconn=Open
+--Taxi In--
+APU=Start
+FLT/GRD=GRD, observe outflow valve open
+AC Meters=APU
+Galley Power=Off
+DC Meters=Batt
+AC freq/volt Norm=Close APU gen breaker (1min before applying load)
+Engn gen breaker lhts=Illum
+KW Meters=Indic 0 for gen 1 and 2 load on gen 3
+Essential Power=APU
+Cabin Air Temp=Set
+Engn 2/APU bleed Switches=Open
+--Parking--
+Taxi Lht=Off
+Xponder=Off
+Parking Brake=Set
+Engn levers=Cutoff
+Beacon Lht=Off
+Anti-Ice=Close
+Pax Signs=Off
+Parking Brake=Release
+Fuel Sys=Off
+DC Meters=Ess tr
+Crew/Pax Oxy Indic=Check
+External Power=As available/req
+--Through Flight--
+Galley Power/Paks=As req
+Hyd=Both sys b pumps on, inspect ext, then as req
+--Flight Termination--
+Emerg Exit Lhts=Off
+Ground Interconn=Close
+Hyd Sys B Pumps=Off
+Pneumatic Sys=Set (1min timer APU)
+Ess Pwr=Stby
+APU Master/External Power=Off
+Battery=Off
+--Checklist by Lightdasher360, thanks to docs/programming by FlyJSim, the Bensons Boeing 727 website, the online cyber pilot website, and video exerpts by Ron Rogers!--

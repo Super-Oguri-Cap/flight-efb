@@ -1,0 +1,167 @@
+Cessna Citation X
+--Cockpit Initial Setup--
+Preflight Exterior Inspection=Complete
+Weight & Balance=Complete
+Documentation=Checked
+Batt1 & Batt2=On
+EICAS=On, set ctrl pos
+Hydraulic A AUX PUMP=On
+Ailerons=Check full deflection
+Elevator=Check full deflection
+Rudder=Check full deflection
+Fuel=Check quantity
+EICAS=Off
+Parking Brake=Hold toe brakes, release, then parking brake on
+Hydraulic A AUX PUMP=Off
+Batt1 & Batt2=Off
+Oxygen Pressure=Checked, set to auto
+Emergency Lights=On, check, then arm
+Standby Power=Test, then on, standby instruments checked
+Standby Horizon=Caged
+Batt1 & Batt2=On
+Nav Lights=On
+Tail Lights=On if night
+--APU Start--
+EICAS=On, set elec, confirm batt volt (24)
+LH Fuel Boost=Norm
+APU Generator=On
+APU Bleed=Off
+APU Master=On
+APU Test=hold, confirm annunciators, then release
+APU DC Volts 22 min=Hold until APU start
+Ready To Load Light Illum=APU On
+APU Ammeter=Check
+APU Bleed=On
+LH Fuel Boost=Off
+Avionics=Confirm APU amps in green arc, then on
+FMS=Position init, then load
+Anti-Ice=Windshield & pitot/static LH/RH to on
+APU Bleed On 2mins=Isolation valve & ac pacs as req
+--Systems Test--
+Smoke Det=Double chime & master warning
+Ldg Gr=Solid tone, gear unlock light
+Fire Warn=Rapid tone, engine fire lights & master warning
+Thrust Rev=Warning inop, master warning
+Flap=Double chime, flap reset light & master warning flash, wait 6sec, lights out
+W/S Temp=Annunciator inop, master caution
+Over Spd=Rapid chime
+AOA=Confirm AOA indicator, slats deployed, stick shaker
+Annun=Confirm aural warnings and annunciator lights
+Off=Tests complete, A aux pump on to retract slats, then off
+--Before Engine Start--
+Cabin Door=Closed
+Comms=Checked & set
+ATIS=Obtained
+Altimeters(3)=Set
+FMS=Flight plan and initialisations set
+Nav=Select source, flight director set
+MFDs=Setup FEE monitor from left to right (fuel, engines, electrical)
+Pressurization=Set
+Departure briefing=Complete
+--Engine Start--
+Beacon Lights=GND
+Seatbelt Sign=Passenger safety
+Parking Brake=Checked set
+Standby Horizon=Uncaged
+Isolation valve=Closed
+APU Bleed=On
+Ignition Switches=Norm
+Engine Start Pressure=>30psi
+Right Engine=Start
+N2 at 10%=Right thrust to idle
+Eng 2=Check N1 rotation, ign annun, oil press rise, ITT rise/roll back after light off
+Eng 2 Start Complete=Repeat for engine 1
+LH/RH Generators=On, check amps & volts
+LH/RH Ignition=Off
+LH/RH Eng Bld Air=Set, isolation valve as req
+APU Bleed=Off
+LH & RH Center Wing Xfer=Norm
+Flight Controls=Checked
+Anti-Ice=As req
+Transponder=STBY
+--Before Taxi--
+Passenger Briefing=Complete
+Thrust Reversers=Checked
+Flaps=Set for T/O
+Stabilizer Trim=Set for T/O
+V-speeds=Set; V1, VR, V2
+Heading Indicator=Verify for assigned RWY
+Autopilot=Nav mode set, preset altitude, Vspeed as req
+Takeoff Briefing=Complete
+Parking Brake=Off
+Taxi Lights=On
+--Before Take-Off--
+Flaps=Check
+Beacon Lights=Full
+Landing Lights=On
+Transponder=ATC ALT
+Anti-Ice=As Req
+EICAS & Vspeeds=Check
+Emergency Procedure Briefing=Complete
+Taxi Lights=Off
+--After Take-Off--
+Landing Gear=Up
+Beacon Lights=GND
+Flaps=Retracted
+Thrust & Autopilot=As req
+--Climb Check--
+APU Generator=Off
+APU Stop=Depress, wait, release & Master off
+Landing Lights & Seatbelt Sign=Off above 10,000ft
+Altimeters=QNE, set standard above 18,000ft
+Autopilot=C/O & mach trim as req
+--Cruise--
+Cruise Thrust=Set
+Approach briefing=Complete prior to descent
+--Descent--
+FMS=Programmed & verified
+Landing Data=Confirmed
+Minimums=Set
+Nav Radios=Set
+V-Speeds=Set
+Pressurization=Set
+Anti-Ice=As req
+Altimeters=Set by 18,000ft
+Passenger Briefing=Complete
+Seatbelt Sign & Landing Lights=Passenger safety & on by 10,000ft
+Tail Light=On if night
+--Before Landing--
+Landing Gear=Down, 3 green
+Speedbrakes=Retracted
+Flaps=As req
+Nav=ILS/FMS set, source selected
+Minimums & Vspeeds=Checked & set
+Airport layout=verified
+Beacon Lights=Full
+Autopilot=Off
+--After Landing--
+Timer=Start
+Rudder/Ailerons=Centered
+Transponder=STBY
+Beacon Lights=GND
+Taxi Lights=On
+Landing Lights=Off
+Flaps & Speedbrakes=Retracted
+Anti-Ice=As req
+Stabilizer Trim=Reset
+APU=As req
+--Parking--
+Taxi Lights=Off
+Parking Brake=On
+Thrust (after 2min idle)=Cut off
+Beacon Lights=Off
+Anti-Ice=Off
+Oxygen=Off
+Seatbelt Sign=Off
+LH & RH Center Wing Xfer=Off
+LH & RH/APU Generators=Off/As req
+Pacs=As req
+Cabin Door=Open
+--Shutdown--
+Standby Horizon=Caged
+STBY/Avionics/EICAS PWR=Off
+Emergency Lights=Off
+APU=Off
+Nav Lights & Tail Light=Off
+BATT1 & Batt2=Off
+--Checklist by Lightdasher360, based on: docs by Laminar Research for XP12, huge thanks to video demonstration from John Kluenker's YouTube channel!--

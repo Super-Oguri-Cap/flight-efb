@@ -1,0 +1,87 @@
+Cessna 172 Skyhawk (G530)
+--Pre-Flight--
+Walk around=DONE
+Parking Brake=ON
+Circuit Breakers=PUSHED
+Magnetos=OFF
+Avionics=OFF
+Fuel Shutoff=IN
+Throttle/Mix Shutoff=IN
+Fuel Tanks=CENTER
+Battery=ON
+Avionics=ON / FAN
+Avionics=OFF
+Fuel Level=CHECKED
+Battery=OFF 
+--Before Start--
+Passenger Briefing=DONE
+Seats and Belts=DONE 
+Flight Plan=CHECKED
+--Start--
+Battery=ON
+Test Flaps=UP/DN/UP
+Fuel Mix=FULL
+Fuel Pump=ON
+Throttle Hold Max for 5s=DONE
+Check Fuel Flow=DONE
+Fuel Pump=OFF
+Beacon Lights=ON
+Strobe Lights=ON
+Nav Lights=ON AT NIGHT
+Magnetos on BOTH=DONE
+Yell 'Clear Prop'=DONE
+Start on Key=DONE
+Idle RPM at 1k=DONE
+Alternator=ON
+Avionics=ON 
+Transpoder=STD BY
+Set Gyro to Mag Hdg=DONE
+Configure Flt Plan / GPS=DONE 
+--Taxi--
+Windows Closed=DONE 
+Doors Closed=DONE
+Check Fuel=DONE
+Test Magnetos=DONE 
+Check Oil Press / Temp=DONE
+Check Amp=DONE 
+Taxi Lights=ON 
+Nav Lights=ON
+--Before Take Off--
+Flight Controls=CHECKED
+Flight Instruments=CHECKED
+COM/NAV=SET
+Transpoder=ON
+Flaps=DN 1 NOTCH
+--After Take Off--
+Flaps=RETRACTED
+Taxi Lights=OFF 
+A/P as Required=ON 
+--Before Landing--
+Flaps as Required=DONE 
+ILS Freq=SET
+COM/VLOC=VLOC 1
+Land Lights=ON 
+--After Landing--
+Taxi Lights=ON 
+Flaps=RETRACTED
+Transponder=STD BY
+--Shutdown--
+Parking Brake=ON
+Throttle=IDLE
+Avionics=OFF
+Transponder=OFF
+Alternator=OFF
+Beacon Lights=OFF 
+Strobe Lights=OFF
+Nav Lights=OFF
+Taxi Lights=OFF
+Land Lights=OFF
+Fuel Mix=IDLE
+Magnetos=OFF
+Chocks=PLACED
+Fuel Selector=LEFT
+Fuel Shutoff=OUT 
+Throttle/Mix Shutoff=OUT
+Doors=OPEN
+Battery=OFF
+--Checklist by tibonev--

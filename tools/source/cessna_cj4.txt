@@ -1,0 +1,64 @@
+Cessna Citation CJ4
+--Before Start--
+Parking Brake=Set
+Gen 2 / Gen 1 = On
+Battery Switch=On
+EMER Lights=Armed
+Standby Flight Display=On
+Avionics Switch=Dispatch
+EICAS=Check
+FMS=Set
+--Engines Start--
+Throttles=Idle
+Beacon Lights=On
+Strobe Lights=On
+Right Engine Start=Push
+Right Run/Stop=Run after 20%
+Left Engine Start=Push
+Left Run/Stop=Run after 20%
+--Taxi--
+Avionics=On
+FD=On
+Yaw Damper=On
+Pitot Heat=On
+Taxi Lights=On
+Seat Belts Lights=On 
+--Take Off--
+Flaps=15
+Landing Lights=On
+Nav Lights=On
+Heading=As Required
+Cruise Altitude=As Required
+--In flight--
+Gear=Up
+Flaps=Retracted
+Landing Lights=Off
+Seat Belts Lights=Off
+--Descent--
+Seat Belts Lights=On
+Flaps=As Required
+ILS/RNAV=Set
+Landing Lights=On
+Speedbrake=As Required
+--Final Approach--
+Speedbrake=Retracted
+Gear=Down
+Flaps=35
+--Taxi to Parking--
+Taxi Lights=On
+Seat Belts Lights=Off
+Flaps=Retracted
+--Shutdown--
+Parking Brake=Set
+Left Engine=Stop
+Right Engine=Stop
+Pitot Heat=Off
+Taxi Lights=Off
+Beacon Lights=Off
+Strobe Lights=Off
+Nav Lights=Off
+Emer Lights=Off
+Gen 2 / Gen 1 =Off
+Avionics=Off
+Battery=Off
+--Checklist by tibonev--

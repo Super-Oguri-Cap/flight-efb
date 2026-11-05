@@ -1,0 +1,83 @@
+Cessna 152
+--Pre-Flight--
+Walk around=DONE
+Parking Brake=ON
+Circuit Breakers=PUSHED
+Carb Heat=OFF
+Magnetos=OFF
+Avionics=OFF
+Fuel Selector=ON
+Battery=ON
+Fuel Level=CHECKED
+--Before Start--
+Passenger Briefing=DONE
+Seats and Belts=DONE 
+Flight Plan=CHECKED
+--Start--
+Test Flaps=UP/DN/UP
+Carb Heat=COLD
+Fuel Mix=FULL
+Throttle=1/2 INCH IN
+Prime=2 to 3x
+Beacon Lights=ON
+Strobe Lights=ON
+Nav Lights=ON AT NIGHT
+Landing Lights=ON AT NIGHT
+Magnetos on BOTH=DONE
+Start on Key=DONE
+Idle RPM at 1k=DONE
+Alternator=ON
+Avionics=ON 
+Transpoder=STD BY
+--Taxi--
+Windows Closed=DONE 
+Doors Closed=DONE
+Check Fuel=DONE
+Test Magnetos=DONE 
+Check Oil Press / Temp=DONE
+Taxi Lights=ON 
+Nav Lights=ON
+--Before Take Off--
+Flight Controls=CHECKED
+Flight Instruments=CHECKED
+COM/NAV=SET
+Transpoder=ON
+Landing Lights=ON
+Flaps=DN 1 NOTCH
+--After Take Off--
+Flaps=RETRACTED
+Taxi Lights=OFF
+--Flight--
+Landing Lights=OFF
+Max RPM=2500
+Max Speed=130kts
+--Approach--
+Flaps as Required=DONE 
+ILS Freq=SET
+COM/VLOC=SET
+Carb Heat=ON
+Landing Lights=ON 
+Speed=65KTS +/-
+--After Landing--
+Taxi Lights=ON 
+Carb Heat=OFF
+Flaps=RETRACTED
+Transponder=STD BY
+--Shutdown--
+Parking Brake=ON
+Throttle=IDLE
+Avionics=OFF
+Transponder=OFF
+Alternator=OFF
+Nav Lights=OFF
+Taxi Lights=OFF
+Landing Lights=OFF
+Fuel Mix=IDLE
+Magnetos=OFF
+Beacon Lights=OFF 
+Strobe Lights=OFF
+Chocks=PLACED
+Fuel Selector=OFF
+Doors=OPEN
+Battery=OFF
+--Checklist by tibonev--

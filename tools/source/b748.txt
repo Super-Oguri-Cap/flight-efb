@@ -1,0 +1,120 @@
+Boeing 747-800
+--Pre Start--
+Parking Brake=SET
+Throttles=IDLE
+Fuel Flow=CUTOFF
+Gear Lever=DOWN
+Flaps=UP
+Fasten Seatbelts=ON
+No Smoking=ON
+Battery=ON
+Ext Power=ON
+Logo Lights=ON
+Std by Power=ON
+Request IFR Clearance=DONE 
+APU=Start
+APU Gen 1=ON
+APU Gen 2=ON
+INS - Nav=ALL
+Emergency Lights=ARM
+Nav Lights=ON
+Window Heat=ON
+Wing Anti-Ice=AUTO
+FMC=PROGRAM
+Fuel Pumps=ON
+Beacon Lights=BOTH
+APU Bleed=ON
+Transponder=STD BY 
+--Startup--
+Request Pushback=DONE
+Engine 1 Starter=PULL
+Engine 1 Fuel Flow=ON > 20%
+Engine 4 Starter=PULL
+Engine 4 Fuel Flow=ON > 20%
+Engine 3 Starter=PULL
+Engine 3 Fuel Flow=ON > 20%
+Engine 2 Starter=PULL
+Engine 2 Fuel Flow=ON > 20%
+APU=OFF
+Hydraulic Pumps=AUTO
+Packs=ON
+Request Taxi Clearance=DONE
+--Taxi--
+Taxi Lights=ON
+Wing Lights=ON
+Heading Indicator=SET
+Altimeter=SET
+AP Altitude=SET
+Standby Instruments=SET
+Autopilot=SET (Don't Activate)
+Autothrust=SET (Don't Activate)
+Flight Director=ON
+Yaw Damper=ON
+--Take off--
+Flaps=10
+Strobe Lights=ON
+Landing Lights=ON
+Autobrakes=RTO
+Transponder=ON
+--Climb--
+Autothrust=ARM and SET
+Autopilot=ON and SET
+Autobrake=OFF
+Below 10000=Max Speed 250 KIAS
+Fasten Seat Belts=OFF above 10000
+Landing Lights=OFF above 10000
+Above 10000=Speed 300 KIAS
+Altimeter=STD above 10000
+--Descent--
+Altimeter=SET below 10000
+Below 10000=Max speed 250 KIAS
+Fasten Seat Belts=ON below 10000
+Speed=Establish 220 KIAS
+Landing Lights=ON
+Spoilers=ARM
+Autobrake=SET
+Flaps=5-10 degrees
+Speed=Establish 200 KIAS
+Flaps=20 degrees
+Speed=Establish 180 KIAS
+Landing Gear=DOWN
+Flaps=25 degrees or FULL
+Speed=Establish 170 KIAS
+--Landing Checklist--
+Autopilot=OFF
+Autothrust=OFF and SPD Deactivated
+Landing Speed=160 KIAS
+After Touchdown=Apply Reverse Thrust
+At 60 KIAS=Cancel Reverse Thrust
+--Taxi--
+Strobe Lights=OFF
+Flaps=UP
+Spoilers=RETRACTED
+Taxi Lights=ON
+Landing Lights=OFF
+Transponder=STD BY
+APU=Start
+--Shutdown Checklist--
+Parking Brake=SET
+Throttle=IDLE
+Fasten Seatbelts=OFF
+Anti-Ice=OFF
+Taxi Lights=OFF
+Nav Lights=OFF
+Flight Director=OFF
+Engine 2 Fuel Flow=CUTOFF
+Engine 2 Fuel Pumps=OFF
+Engine 2 Hydraulic Pump=OFF 
+Engine 3 Fuel Flow=CUTOFF
+Engine 3 Fuel Pumps=OFF
+Engine 3 Hydraulic Pump=OFF 
+Engine 4 Fuel Flow=CUTOFF
+Engine 4 Fuel Pumps=OFF
+Engine 4 Hydraulic Pump=OFF 
+Engine 1 Fuel Flow=CUTOFF
+Engine 1 Fuel Pumps=OFF
+Engine 1 Hydraulic Pump=OFF 
+Beacon Lights=OFF
+APU=OFF
+Battery=OFF
+Checklist by tibonev.

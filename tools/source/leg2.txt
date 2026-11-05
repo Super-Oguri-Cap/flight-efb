@@ -1,0 +1,86 @@
+Lancair Legacy (Aerobask/X-Plane)
+--Before Start--
+Wght & Bal, Oxy, Maint=Chkd
+Docs/Charts/NOTAMS=Onboard
+Prkg Brk=Set
+Walkaround=Complete
+Batt/Alt/Avionics=Off
+L/G=Dwn
+Nav Lht=On
+GPU=As req
+--Starting--
+Batt Chrgd=Batt on, GPU/Alt Air off
+Fuel=Check, L/R
+Pwr=Mix rich, prop full, throttle 1/4"
+Pump=Check, prime as req
+Prop Clear=Mags on, start egn
+Alt/Elec Trim/Avionics/Radios=On
+Pwr=Idle throttle (>800rpm), lean mix
+--Pre-Taxi--
+Sys Tsts=AOA/ELT
+Flt Plan/Altimeters/Radios/Xpdr=Set
+Canopy=Latched, door seal on
+Hdg=Rwy
+Flaps/Trims=Set
+Instr=Check
+Cntrls=Free/Correct
+--Taxi--
+Xpdr, Taxi Lht=On
+Brks=Chkd
+--Run Up--
+Taxi Lht=Off
+Prkg Brk=Set
+Oil Temp & CHT=100f/38c & 150f/65c min
+Pwr=Mix rich, throttle 1800rpm
+Prop=Cycle twice
+Mags=Check, max 150 drop & 50 diff
+Pwr=Throttle check full out then idle, lean mix
+**Taxi Lhts as req leaving runup
+--Before Takeoff--
+Hdg=Set init crs
+Instr=Chkd
+AP/FD=Off/As desired
+--Takeoff--
+Strobes/Lndg=On
+Xpdr=Alt
+Pwr=Mix rich, prop full
+Pump=As req
+--Climb--
+Clr Rwy=L/G up
+800'=Flaps up, taxi/lndg/strobes & pump off
+Pwr=2500rpm, lean mix, autotrack as req
+**Oil Temp & CHT=240f/116c & 500f/260c max
+Altimeters=Set thru clb
+Fuel=Balanced
+10,000' day/5,000' night=Oxy on
+--Cruise--
+Pwr/Autotrack=As desired
+**CHT=Blw 435f/224c max cruise, 400f/205c econ cruise
+Instr/Nav/Fuel/Altimeters=Monitor & set as req
+--Descent--
+Fuel=Balanced
+Altimeters=Set
+Pwr/Autotrack=As req
+**CHT >180f/82c
+10,000' day/5,000' night=Oxy off
+--Pre Landing--
+Fuel=Fullest tank
+Pwr=Mix rich, prop high
+L/G=Dwn, 3 green
+**140kts max
+Flaps=Set
+Landing/Taxi/Strobes=On
+Spdbrks=On after touchdown
+--Taxi In--
+Pwr=Throttle idle, lean mix
+Flaps=Up
+Trims=Neutral
+Strobes/Lndg, Elec Trim, Door Seal=Off
+Xpdr=On
+--Shutdown--
+Xpdr/Radios/Avionics=Off
+Mags=Check, max 150 drop & 50 diff
+Pwr=Throttle/Mix cutoff
+Fuel/Mags/Lhts/Alt/Batt=Off
+Covers/Chocks/Canopy Latch=Secure
+--Checklist by Lightdasher360, thanks to Aerobask/Lancair/Continental docs & GA pilot insight--

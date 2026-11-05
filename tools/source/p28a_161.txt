@@ -1,0 +1,115 @@
+Piper Warrior 2
+--Pre-Flight--
+Weight & Balance=Complete
+Charts & Documents=Secured
+Tie-Downs & Chocks=Removed
+Tow Bar=Removed
+Parking Brake=Set
+Flaps=Full
+Baggage Door=Closed
+Flaps/Ailerons(Right Wing)=Chkd
+Wing Tips/Lights(Right Wing)=Undamaged
+Right Fuel Tank=Chkd
+Oil=Chkd
+Propeller=Chkd
+Landing Light=Chkd
+Left Fuel Tank=Chkd
+Wing Tips/Lights(Left Wing)=Undamaged
+Flaps/Ailerons(Left Wing)=Chkd
+Stabilator/Trim Tab=Chkd
+Fin/Rudder=Undamaged
+--Engine Start--
+Flaps=Up
+Passenger Briefing=Complete
+Circuit Breakers=In
+Carburetor Heat=Off
+Fuel Selectors=Set
+Prime=As req
+Throttle=1/4" open
+Batt=On
+Beacon=On
+Fuel Pump=On
+Mixture=Rich
+Propeller=Clear!
+Starter=Engage
+Throttle=Adjust
+--After Start--
+Mixture=Lean for Ground ops
+Throttle=800-1200RPM
+Fuel Pump=Off
+Oil=Pressure Chkd
+ALTR & Avionics=On
+Lights=As req
+--Pre-Taxi--
+Nav/Com Radio=Chkd & set
+Xponder=Set, STBY
+Altimeter=Set
+DG/HSI=Set to magnetic compass
+Flight Plan=Set
+HSI/OBS=Select nav source
+Parking Brake=Release
+Brakes=Chkd
+--Taxiing--
+Attitude Indicator=Stable
+Heading Indicator=Correct, verify by compass/RWY
+Turn Rate Indicator & Slip/Skid=Correct
+Magnetic Compass=Swings freely
+Safety Briefing/Emergency Procedures=Complete
+--Ground Check--
+Parking Brake=Set
+Controls & Config=Correct
+Instruments=Correct
+Ammeter=Chkd
+Trim=Set
+Mixture=Full
+Throttle=2000RPM
+Magnetos=Check both(Max 175RPM drop, 75EGT rise)
+Carburetor Heat=Chkd (50RPM drop)
+Vaccum=4.8-5.1inHG
+Mixture=Lean
+Throttle=Retard
+Annunciator Panel=Press to test
+--Takeoff--
+Doors=Latched
+Xponder=ALT
+Fuel Pump=On
+Primer=Locked
+Flaps=Set
+Landing Lights/Strobes=On
+Throttle=Full Power
+Rotation=55kts
+Initial Climb=63kts
+Altitude Above 300ft=Flaps retracted
+--Climb--
+Altitude Above 1000ft=Fuel pump off
+External Lights=As req
+Mixture/Power=Refer to perf tables
+Optimum Climb Spd=79kts
+--Cruise--
+Fuel Selector=Change every 15mins
+--Descent--
+Mixture/Power=As req
+Carburetor Heat=As req
+Throttle=Apply power every 1500ft
+--Approach/Landing--
+Fuel Pump=On
+Fuel Selector=Fullest Tank
+Mixture=Full
+Flaps=Set (103KIAS max)
+Trim=Trim for 70KIAS
+--Taxi In--
+Flaps=Retract
+Fuel Pump=Off
+Mixture=Lean
+Lights=As req
+Xponder=STBY
+--Shutdown--
+Avionics=Off
+Throttle=Closed
+Mixture=Idle cutoff
+Electrical Switches & Lights=Off
+Magnetos=Off
+Fuel Selector=Off
+ALTR & Batt=Off
+Chocks & Tie-Downs=Set
+--Checklist by Lightdasher360, thanks to documentation by JustFlight and flight schools (since I won't name my own)--

@@ -1,0 +1,124 @@
+Airbus A330 / Beluga
+--Walkaround--
+Remove Engine Covers
+Remove Pins
+Remove Chocks
+--Startup--
+Parking Brake=Set
+GPU=Connect
+Ext Power A=ON
+Ext Power B=ON
+Battery 1=ON
+Battery 2=ON
+ADIRS=NAV
+No Smoking Signs=ON
+Nav Lights=ON
+APU Battery=ON
+Fuel Pumps=ON
+APU Master SW=ON
+APU Start=ON
+APU Bleed=ON
+**Once APU Avail lit
+Emergency Lights=ARM
+Ext Power A=OFF
+Ext Power B=OFF
+GPU=Disconnect
+Radios=ON
+Request Clearence=DONE
+Transponder=SET
+FMC=Program
+*After IR IN Align is done
+--Engine Start--
+Request Startup=DONE
+Beacon Lights=ON
+Request Pushback=DONE
+Ignition=Start
+Engine 1 Master=ON
+**Wait until Avail
+Engine 2 Master=ON
+**Wait until Avail
+APU Bleed=OFF
+APU Master SW=OFF
+Ignition=NORMAL
+--Taxi--
+SeatBelts=ON
+Pred W/S=SET
+Taxi Lights=ON
+Crew Supply=ON
+Request Taxi=DONE
+--Before Takeoff--
+TCAS=SET
+Flaps=2
+Autobrake=MAX
+Ground Spoilers=ARM
+Autopilot=SET
+FD1=ON
+FD2=ON
+Strobe Lights=ON
+Wing Lights=ON
+Landing Lights=ON
+Request Takeoff=DONE
+--Climb--
+Ground Spoilers=RETRACT
+Throttle Levers=A/T - CLB DETENT
+AP1=ENGAGE AS REQUIRED
+Taxi Lights=OFF
+Altimeter=AT FL100 PULL TO SET STD
+Below 10.000ft=MAX. 250 KIAS
+Landing Lights=OFF ABOVE FL100
+SeatBelts=OFF ABOVE FL100
+--Descent--
+FL240=0.76 MACH
+FL180=0.67 MACH
+FL120=280 KIAS
+Speed=250 KIAS BELOW 10000ft
+Altimeter=RESET TO LOCAL
+LANDING LIGHTS=ON
+LS=ON
+--Approach--
+SeatBelts=ON
+Speed=ESTABLISH 210 KIAS
+Taxi Lights=ON
+Ground Spoilers=ARM
+Autobrakes=SET
+Flaps=FLAPS 1
+Speed=ESTABLISH 180 KIAS
+Flaps=FLAPS 2
+Speed=MANAGED
+Landing Gear=DOWN
+LANDING GEAR 3 GREEN=FLAPS 3
+Speed=ESTABLISH 160 KIAS
+Flaps=FULL
+--Final Glideslope Descent--
+Speed=ESTABLISH 145 KIAS
+LS=ON
+LOC=ON
+APPR=ON
+--Landing--
+On Touch Down=REVERSE THRUST
+At 60kt=CANCEL REVERSE THRUST
+--After Landing--
+Ground Spoilers=DISARMED
+Flaps=RETRACT
+Landing Lights=OFF
+Taxi Lights=ON
+APU=START
+Request Taxi to Gate=DONE
+Taxi Lights=OFF WHEN IN GATE
+Strobe Lights=OFF
+Wing Lights=OFF
+--Shutdown--
+Parking Brake=SET
+Throttle Levers=IDLE
+Electrical Power=ESTABLISH
+Engine Master=BOTH OFF
+Beacon Lights=OFF
+Nav Lights=OFF
+Passenger Signs=OFF
+Doors=OPEN
+FD=BOTH OFF
+Fuel Pumps=ALL OFF
+ADIRS=OFF
+APU=AS REQUIRED
+Batteries=AS REQUIRED
+--Checklist by tibonev--
