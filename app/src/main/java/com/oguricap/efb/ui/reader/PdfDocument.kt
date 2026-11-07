@@ -53,6 +53,15 @@ class PdfDocument(
     // 否则切换反色时会把另一状态整批挤出，表现为每次切都重新渲染
     private val cache = object : LruCache<Int, RenderedPage>(CACHE_PAGES * 2) {}
 
+    // 放大到 2 倍以上时用的高清版：1.5 倍基准宽度，一张约 30 MB。
+    // 只留 1 张 —— 放大时用户只会盯着一页看，翻页后旧的直接淘汰，
+    // 这样内存上限是「基准 2 页 + 高清 1 页」，不会随页数增长。
+    private val hiResCache = object : LruCache<Int, RenderedPage>(HIRES_CACHE_PAGES) {}
+
+    // 低分辨率预览：1/4 屏宽，一张不到 1 MB，几十毫秒就能出。
+    // 跳页时先垫上它，界面不会长时间空着等正式分辨率。
+    private val previewCache = object : LruCache<Int, RenderedPage>(PREVIEW_CACHE_PAGES * 2) {}
+
     private val invertPaint = Paint().apply {
         colorFilter = ColorMatrixColorFilter(
             ColorMatrix(
@@ -70,19 +79,42 @@ class PdfDocument(
     // 拖页码滑块时列表会连续跳到很多页，每页都排着队等这把锁；
     // 如果等锁的协程不能取消，它们拿到锁后仍会把已经翻过去的那页画完，
     // 真正要看的那页只能排在后面 —— 表现就是「停下来以后还要转好几秒」。
-    suspend fun render(index: Int, invert: Boolean): RenderedPage {
+    fun isCached(index: Int, invert: Boolean, hiRes: Boolean = false): Boolean {
+        val store = if (hiRes) hiResCache else cache
+        return store.get(cacheKey(index, invert)) != null
+    }
+
+    suspend fun renderPreview(index: Int, invert: Boolean): RenderedPage {
         require(index in 0 until pageCount) {
             "页码越界: " + index + "，本文件共 " + pageCount + " 页"
         }
         val key = cacheKey(index, invert)
-        cache.get(key)?.let { return it }
+        previewCache.get(key)?.let { return it }
         synchronized(this) {
-            cache.get(key)?.let { return it }
+            previewCache.get(key)?.let { return it }
+            coroutineContext.ensureActive()
+            if (closed) throw kotlinx.coroutines.CancellationException("文档已关闭")
+            val page = renderUncached(index, invert, previewWidthPx())
+            previewCache.put(key, page)
+            return page
+        }
+    }
+
+    suspend fun render(index: Int, invert: Boolean, hiRes: Boolean = false): RenderedPage {
+        require(index in 0 until pageCount) {
+            "页码越界: " + index + "，本文件共 " + pageCount + " 页"
+        }
+        val store = if (hiRes) hiResCache else cache
+        val widthPx = if (hiRes) hiResWidthPx() else targetWidthPx
+        val key = cacheKey(index, invert)
+        store.get(key)?.let { return it }
+        synchronized(this) {
+            store.get(key)?.let { return it }
             // 拿到锁先确认这次请求还有没有人要：滑走了就直接抛取消
             coroutineContext.ensureActive()
             if (closed) throw kotlinx.coroutines.CancellationException("文档已关闭")
-            val page = renderUncached(index, invert)
-            cache.put(key, page)
+            val page = renderUncached(index, invert, widthPx)
+            store.put(key, page)
             return page
         }
     }
@@ -104,10 +136,14 @@ class PdfDocument(
     // IllegalArgumentException("Unsupported pixel format")（真机实测）。
     // 缓存仍以 RGB_565 存放（省一半内存）：8888 渲染完成后一次性转换，
     // 反色在这个转换步骤里做，临时 8888 位图立刻回收。
-    private fun renderUncached(index: Int, invert: Boolean): RenderedPage {
+    private fun renderUncached(
+        index: Int,
+        invert: Boolean,
+        widthPx: Int = targetWidthPx,
+    ): RenderedPage {
         renderer.openPage(index).use { page ->
             val size = PageGeometry.fitWidth(
-                targetWidthPx,
+                widthPx,
                 page.width.toFloat(),
                 page.height.toFloat(),
             )
@@ -132,6 +168,8 @@ class PdfDocument(
             if (closed) return
             closed = true
             cache.evictAll()
+            hiResCache.evictAll()
+            previewCache.evictAll()
             renderer.close()
             pfd.close()
         }
@@ -139,8 +177,25 @@ class PdfDocument(
 
     private fun cacheKey(index: Int, invert: Boolean): Int = index * 2 + if (invert) 1 else 0
 
+    private fun previewWidthPx(): Int =
+        (targetWidthPx / PREVIEW_DIVISOR).coerceAtLeast(MIN_PREVIEW_WIDTH)
+
+    // 高清版按基准宽度的 1.5 倍出图：基准已是 2 倍屏宽，
+    // 合起来能撑到 3 倍缩放仍然清晰（再往上就受内存限制了）
+    private fun hiResWidthPx(): Int = targetWidthPx * HI_RES_NUMERATOR / HI_RES_DENOMINATOR
+
     companion object {
         // 分辨率按 1.5 倍屏宽出图后单页内存翻了一倍多，缓存相应减到 2 页
         const val CACHE_PAGES = 2
+
+        // 预览图是正式分辨率的 1/4，占内存很小，可以多留几张
+        private const val PREVIEW_CACHE_PAGES = 6
+
+        // 高清版只留一张：约 30 MB，翻页即淘汰
+        private const val HIRES_CACHE_PAGES = 1
+        private const val HI_RES_NUMERATOR = 3
+        private const val HI_RES_DENOMINATOR = 2
+        private const val PREVIEW_DIVISOR = 4
+        private const val MIN_PREVIEW_WIDTH = 200
     }
 }

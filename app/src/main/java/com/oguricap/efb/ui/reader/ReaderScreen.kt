@@ -77,6 +77,8 @@ import com.oguricap.efb.perf.Perf
 import com.oguricap.efb.ui.ChartViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -130,6 +132,12 @@ fun PdfReaderScreen(
     var error by remember(documentKey) { mutableStateOf<String?>(null) }
     var scale by remember(documentKey) { mutableFloatStateOf(1f) }
     var offset by remember(documentKey) { mutableStateOf(Offset.Zero) }
+    // 放大到 2 倍以上时换成高清版；退回 1.6 倍以下才换回来。
+    // 两个阈值不同是刻意的：手指在 2.0 抖动时不会反复触发重绘。
+    var hiRes by remember(documentKey) { mutableStateOf(false) }
+    LaunchedEffect(scale) {
+        hiRes = if (hiRes) scale > HI_RES_EXIT else scale > HI_RES_ENTER
+    }
     var savedPage by rememberSaveable(documentKey) { mutableIntStateOf(0) }
     var savedOffset by rememberSaveable(documentKey) { mutableIntStateOf(0) }
     // 滚动位置跨重建保留，否则切字体大小回来会跳回第一页
@@ -184,10 +192,13 @@ fun PdfReaderScreen(
         }
     }
 
-    // 当前页渲染完后立刻预渲染下一页
+    // 预渲染下一页，但加 250ms 防抖：
+    // 拖滑块时会连续经过几十页，逐页预渲染等于把渲染线程占满，
+    // 真正要看的那页反而排在后面。停下来再算下一页就够了。
     LaunchedEffect(document, invert) {
         val doc = document ?: return@LaunchedEffect
-        snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
+        snapshotFlow { listState.firstVisibleItemIndex }.collectLatest { index ->
+            delay(PREFETCH_DELAY_MS)
             withContext(Dispatchers.IO) {
                 runCatching { doc.prefetch(index + 1, invert) }
             }
@@ -405,7 +416,7 @@ fun PdfReaderScreen(
                         },
                 ) {
                     items((0 until doc.pageCount).toList(), key = { it }) { index ->
-                        PdfPageItem(doc, index, invert)
+                        PdfPageItem(doc, index, invert, hiRes)
                     }
                 }
             }
@@ -418,7 +429,10 @@ fun PdfReaderScreen(
                     dragging = sliderDragging,
                     dragPage = sliderPage,
                     onDraggingChange = { sliderDragging = it },
-                    onPage = { page ->
+                    // 拖动过程中只更新气泡上的页码，不发跳转请求
+                    onPreview = { sliderPage = it },
+                    // 松手（或点轨道）才真正跳一次，只渲染目标页
+                    onCommit = { page ->
                         sliderPage = page
                         scope.launch { listState.scrollToItem(page) }
                     },
@@ -480,7 +494,8 @@ private fun PageSlider(
     dragging: Boolean,
     dragPage: Int,
     onDraggingChange: (Boolean) -> Unit,
-    onPage: (Int) -> Unit,
+    onPreview: (Int) -> Unit,
+    onCommit: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val shown = (if (dragging) dragPage else currentPage).coerceIn(0, pageCount - 1)
@@ -490,28 +505,34 @@ private fun PageSlider(
         modifier = modifier
             .pointerInput(pageCount) {
                 var lastPage = -1
-                fun jump(y: Float) {
+                fun preview(y: Float) {
                     val page = PageGeometry.pageAt(y, size.height.toFloat(), pageCount)
                     if (page != lastPage) {
                         lastPage = page
-                        onPage(page)
+                        onPreview(page)
                     }
                 }
                 detectVerticalDragGestures(
                     onDragStart = { position ->
                         onDraggingChange(true)
-                        jump(position.y)
+                        preview(position.y)
                     },
-                    onDragEnd = { onDraggingChange(false) },
-                    onDragCancel = { onDraggingChange(false) },
+                    onDragEnd = {
+                        onDraggingChange(false)
+                        if (lastPage >= 0) onCommit(lastPage)
+                    },
+                    onDragCancel = {
+                        onDraggingChange(false)
+                        if (lastPage >= 0) onCommit(lastPage)
+                    },
                 ) { change, _ ->
-                    jump(change.position.y)
+                    preview(change.position.y)
                     change.consume()
                 }
             }
             .pointerInput(pageCount) {
                 detectTapGestures { position ->
-                    onPage(PageGeometry.pageAt(position.y, size.height.toFloat(), pageCount))
+                    onCommit(PageGeometry.pageAt(position.y, size.height.toFloat(), pageCount))
                 }
             },
     ) {
@@ -535,21 +556,42 @@ private fun PageSlider(
 }
 
 @Composable
-private fun PdfPageItem(document: PdfDocument, index: Int, invert: Boolean) {
+private fun PdfPageItem(
+    document: PdfDocument,
+    index: Int,
+    invert: Boolean,
+    hiRes: Boolean,
+) {
     var page by remember(document, index, invert) { mutableStateOf<RenderedPage?>(null) }
+    var preview by remember(document, index, invert) { mutableStateOf<RenderedPage?>(null) }
     var renderError by remember(document, index, invert) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(document, index, invert) {
+    LaunchedEffect(document, index, invert, hiRes) {
+        // 两段式：正式分辨率没有缓存时，先出一张 1/4 宽的预览垫上，
+        // 跳页后不至于整屏空白等几百毫秒；正式图算完再替换掉。
+        // 已经显示了基准图、只是升级高清时不用再垫预览。
+        if (page == null && !document.isCached(index, invert, hiRes)) {
+            withContext(Dispatchers.IO) {
+                runCatching { document.renderPreview(index, invert) }
+            }.onSuccess { preview = it }
+        }
         // 渲染必须离开主线程；命中缓存时这里是一次纯查表
         val result = withContext(Dispatchers.IO) {
-            runCatching { Perf.timed("pdf_render_" + (index + 1)) { document.render(index, invert) } }
+            runCatching {
+                Perf.timed("pdf_render_" + (index + 1)) {
+                    document.render(index, invert, hiRes)
+                }
+            }
         }
         result.onSuccess { page = it }
-        result.onFailure { renderError = it.message ?: it.toString() }
+        result.onFailure {
+            renderError = it.message ?: it.toString()
+            // 预览已经显示出来时，正式图失败也不用把整页清空
+        }
     }
 
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        val rendered = page
+        val rendered = page ?: preview
         if (rendered == null) {
             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                 if (renderError != null) {
@@ -582,3 +624,10 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+// 预渲染的防抖时长：滑得快时不断重置，停稳之后才真正渲染下一页
+private const val PREFETCH_DELAY_MS = 250L
+
+// 放大重绘的迟滞阈值：过 2 倍换高清，退回 1.6 倍以下才还原
+private const val HI_RES_ENTER = 2.0f
+private const val HI_RES_EXIT = 1.6f
