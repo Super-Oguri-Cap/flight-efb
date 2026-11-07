@@ -1,7 +1,14 @@
 package com.oguricap.efb.ui.reader
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -9,20 +16,27 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -33,7 +47,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -48,9 +64,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.oguricap.efb.data.Chart
 import com.oguricap.efb.data.ChartType
 import com.oguricap.efb.perf.Perf
@@ -58,6 +78,7 @@ import com.oguricap.efb.ui.ChartViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -68,6 +89,7 @@ fun ReaderScreen(
     vm: ChartViewModel,
     chart: Chart,
     onBack: () -> Unit,
+    onFullscreenChange: (Boolean) -> Unit = {},
 ) {
     PdfReaderScreen(
         file = vm.absoluteFile(chart),
@@ -78,6 +100,7 @@ fun ReaderScreen(
         invert = vm.invertReader,
         onToggleInvert = { vm.toggleInvert() },
         onBack = onBack,
+        onFullscreenChange = onFullscreenChange,
     )
 }
 
@@ -95,8 +118,15 @@ fun PdfReaderScreen(
     invert: Boolean,
     onToggleInvert: () -> Unit,
     onBack: () -> Unit,
+    onFullscreenChange: (Boolean) -> Unit = {},
 ) {
     var document by remember(documentKey) { mutableStateOf<PdfDocument?>(null) }
+    // 全屏：顶栏和底部标签一起隐藏，页面铺满整屏
+    var fullscreen by rememberSaveable(documentKey) { mutableStateOf(false) }
+    // 右侧页码滑块的状态（拖拽时显示页码气泡）
+    var sliderDragging by remember { mutableStateOf(false) }
+    var sliderPage by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
     var error by remember(documentKey) { mutableStateOf<String?>(null) }
     var scale by remember(documentKey) { mutableFloatStateOf(1f) }
     var offset by remember(documentKey) { mutableStateOf(Offset.Zero) }
@@ -119,7 +149,10 @@ fun PdfReaderScreen(
 
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val widthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }
+    // 按 2 倍屏宽出图。PdfRenderer 输出的是位图，放大只是把位图拉大：
+    // 1 倍屏宽时放到 2.5 倍相当于插值 2.5 倍，字必然发虚；2 倍时只插值 1.25 倍，
+    // 2.5 倍以内基本看不出模糊。代价是单页 RGB_565 约 13 MB，缓存已相应减到 2 页。
+    val widthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() * 2 }
 
     LaunchedEffect(documentKey, file) {
         if (file == null) {
@@ -144,7 +177,11 @@ fun PdfReaderScreen(
     }
 
     DisposableEffect(documentKey) {
-        onDispose { document?.close() }
+        onDispose {
+            document?.close()
+            // 离开阅读页时把底部标签栏恢复出来，否则用户会被困在全屏里
+            if (fullscreen) onFullscreenChange(false)
+        }
     }
 
     // 当前页渲染完后立刻预渲染下一页
@@ -157,11 +194,28 @@ fun PdfReaderScreen(
         }
     }
 
+    // 全屏时把系统状态栏/导航栏也一起藏掉，否则页面顶部会压在状态栏底下
+    val view = LocalView.current
+    DisposableEffect(fullscreen) {
+        val window = view.context.findActivity()?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (fullscreen && controller != null) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            // 退出全屏或页面被销毁时恢复；没进过全屏时这条是无害的重置
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     val pageCount = document?.pageCount ?: 0
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // 全屏时整条顶栏不组合，页面直接顶到状态栏下面
+            if (!fullscreen) TopAppBar(
                 title = {
                     Column {
                         Text(
@@ -188,6 +242,12 @@ fun PdfReaderScreen(
                     }
                 },
                 actions = {
+                    TextButton(onClick = {
+                        fullscreen = true
+                        onFullscreenChange(true)
+                    }) {
+                        Text("全屏")
+                    }
                     if (scale > 1.01f) {
                         TextButton(onClick = {
                             scale = 1f
@@ -349,7 +409,128 @@ fun PdfReaderScreen(
                     }
                 }
             }
+
+            // 右侧页码滑块：378 页的手册靠甩屏翻页找条目不现实
+            if (doc != null && doc.pageCount > 1) {
+                PageSlider(
+                    pageCount = doc.pageCount,
+                    currentPage = listState.firstVisibleItemIndex,
+                    dragging = sliderDragging,
+                    dragPage = sliderPage,
+                    onDraggingChange = { sliderDragging = it },
+                    onPage = { page ->
+                        sliderPage = page
+                        scope.launch { listState.scrollToItem(page) }
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                        .width(SLIDER_WIDTH)
+                        .fillMaxHeight()
+                        .padding(vertical = 48.dp),
+                )
+            }
+
+            // 拖滑块时把页码显示出来，不然不知道停在哪一页
+            if (sliderDragging && doc != null) {
+                Surface(
+                    modifier = Modifier.align(Alignment.CenterStart).padding(16.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xCC000000),
+                ) {
+                    Text(
+                        text = "第 " + (sliderPage + 1) + " / " + doc.pageCount + " 页",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
+            }
+
+            // 全屏时留一个退出口：顶栏已经隐藏，只剩系统返回键不够直观
+            if (fullscreen) {
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                    shape = CircleShape,
+                    color = Color(0x66000000),
+                ) {
+                    IconButton(onClick = {
+                        fullscreen = false
+                        onFullscreenChange(false)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "退出全屏",
+                            tint = Color.White,
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+private val SLIDER_WIDTH = 28.dp
+private val SLIDER_THUMB_HEIGHT = 44.dp
+
+// 右侧页码滑块：按住上下拖动直接跳页，轻点轨道也能跳。
+// 只服务于「章节多、页数大」的手册；只有一两页的文件不显示。
+@Composable
+private fun PageSlider(
+    pageCount: Int,
+    currentPage: Int,
+    dragging: Boolean,
+    dragPage: Int,
+    onDraggingChange: (Boolean) -> Unit,
+    onPage: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shown = (if (dragging) dragPage else currentPage).coerceIn(0, pageCount - 1)
+    val fraction = if (pageCount <= 1) 0f else shown.toFloat() / (pageCount - 1)
+
+    BoxWithConstraints(
+        modifier = modifier
+            .pointerInput(pageCount) {
+                var lastPage = -1
+                fun jump(y: Float) {
+                    val page = PageGeometry.pageAt(y, size.height.toFloat(), pageCount)
+                    if (page != lastPage) {
+                        lastPage = page
+                        onPage(page)
+                    }
+                }
+                detectVerticalDragGestures(
+                    onDragStart = { position ->
+                        onDraggingChange(true)
+                        jump(position.y)
+                    },
+                    onDragEnd = { onDraggingChange(false) },
+                    onDragCancel = { onDraggingChange(false) },
+                ) { change, _ ->
+                    jump(change.position.y)
+                    change.consume()
+                }
+            }
+            .pointerInput(pageCount) {
+                detectTapGestures { position ->
+                    onPage(PageGeometry.pageAt(position.y, size.height.toFloat(), pageCount))
+                }
+            },
+    ) {
+        Box(
+            modifier = Modifier.align(Alignment.Center)
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(Color(0x22000000), RoundedCornerShape(2.dp)),
+        )
+        Box(
+            modifier = Modifier.align(Alignment.TopCenter)
+                .offset(
+                    y = (maxHeight * fraction - SLIDER_THUMB_HEIGHT / 2)
+                        .coerceIn(0.dp, maxHeight - SLIDER_THUMB_HEIGHT),
+                )
+                .width(6.dp)
+                .height(SLIDER_THUMB_HEIGHT)
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)),
+        )
     }
 }
 
@@ -394,3 +575,10 @@ private fun PdfPageItem(document: PdfDocument, index: Int, invert: Boolean) {
 
 // 单指位移超过这个值就按「拖动」处理，不再参与双击判定
 private const val TOUCH_SLOP = 8f
+
+// Compose 里拿不到 Activity，只能顺着 ContextWrapper 往上找
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}

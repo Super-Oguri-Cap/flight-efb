@@ -9,6 +9,8 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.LruCache
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.File
 
 data class RenderedPage(
@@ -64,25 +66,35 @@ class PdfDocument(
         )
     }
 
-    fun render(index: Int, invert: Boolean): RenderedPage {
+    // render 改成挂起函数，是为了能在「排队等渲染锁」的过程中被打断。
+    // 拖页码滑块时列表会连续跳到很多页，每页都排着队等这把锁；
+    // 如果等锁的协程不能取消，它们拿到锁后仍会把已经翻过去的那页画完，
+    // 真正要看的那页只能排在后面 —— 表现就是「停下来以后还要转好几秒」。
+    suspend fun render(index: Int, invert: Boolean): RenderedPage {
         require(index in 0 until pageCount) {
             "页码越界: " + index + "，本文件共 " + pageCount + " 页"
         }
         val key = cacheKey(index, invert)
+        cache.get(key)?.let { return it }
         synchronized(this) {
             cache.get(key)?.let { return it }
+            // 拿到锁先确认这次请求还有没有人要：滑走了就直接抛取消
+            coroutineContext.ensureActive()
+            if (closed) throw kotlinx.coroutines.CancellationException("文档已关闭")
             val page = renderUncached(index, invert)
             cache.put(key, page)
             return page
         }
     }
 
-    // 当前页显示完之后在后台把下一页算好，翻页时直接命中缓存
-    fun prefetch(index: Int, invert: Boolean) {
+    // 当前页显示完之后在后台把下一页算好，翻页时直接命中缓存。
+    // 快速滑动时这次预渲染多半会被取消，同样是上面那把锁上的排队问题。
+    suspend fun prefetch(index: Int, invert: Boolean) {
         if (index < 0 || index >= pageCount) return
         val key = cacheKey(index, invert)
         synchronized(this) {
             if (closed || cache.get(key) != null) return
+            coroutineContext.ensureActive()
             cache.put(key, renderUncached(index, invert))
         }
     }
@@ -128,6 +140,7 @@ class PdfDocument(
     private fun cacheKey(index: Int, invert: Boolean): Int = index * 2 + if (invert) 1 else 0
 
     companion object {
-        const val CACHE_PAGES = 3
+        // 分辨率按 1.5 倍屏宽出图后单页内存翻了一倍多，缓存相应减到 2 页
+        const val CACHE_PAGES = 2
     }
 }

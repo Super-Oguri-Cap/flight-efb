@@ -21,9 +21,9 @@ object ReferenceDocs {
     val all: List<ReferenceDoc> = listOf(
         ReferenceDoc(
             id = "a320-normal",
-            title = "A320 正常检查单",
-            subtitle = "正常程序 · 检查单原件",
-            note = "按下发版本原样收录，用于逐条核对；正文以本机 PDF 为准。",
+            title = "A320 正常检查单（原件）",
+            subtitle = "PDF 原件 · 文字版在机型列表里，可逐条勾选",
+            note = "按下发版本原样收录，用于与文字版对照。",
             asset = "docs/a320_normal_checklist.pdf",
             revision = "1",
         ),

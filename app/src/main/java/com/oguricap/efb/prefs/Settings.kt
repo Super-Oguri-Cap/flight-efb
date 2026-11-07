@@ -33,6 +33,13 @@ class Settings(context: Context) {
             prefs.edit().putBoolean(KEY_ONBOARDING, value).apply()
         }
 
+    // 检查单分组互斥：开一次只展开一个阶段，避免一屏里摊开好几份
+    var exclusiveChecklistPhases: Boolean
+        get() = prefs.getBoolean(KEY_EXCLUSIVE, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_EXCLUSIVE, value).apply()
+        }
+
     // 索引来源：asset 表示用 APK 预置的，scan 表示在手机上扫描目录生成的
     var indexOrigin: String
         get() = prefs.getString(KEY_ORIGIN, ORIGIN_ASSET).orEmpty()
@@ -49,5 +56,6 @@ class Settings(context: Context) {
         private const val KEY_QUERY = "last_query"
         private const val KEY_ONBOARDING = "onboarding_done"
         private const val KEY_ORIGIN = "index_origin"
+        private const val KEY_EXCLUSIVE = "exclusive_checklist_phases"
     }
 }

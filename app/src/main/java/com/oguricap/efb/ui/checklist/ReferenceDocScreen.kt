@@ -39,6 +39,7 @@ fun ReferenceDocScreen(
     invert: Boolean,
     onToggleInvert: () -> Unit,
     onBack: () -> Unit,
+    onFullscreenChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     var file by remember(doc.id) { mutableStateOf<File?>(null) }
@@ -90,5 +91,6 @@ fun ReferenceDocScreen(
         invert = invert,
         onToggleInvert = onToggleInvert,
         onBack = onBack,
+        onFullscreenChange = onFullscreenChange,
     )
 }

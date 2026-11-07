@@ -73,4 +73,31 @@ class PageGeometryTest {
         val result = PageGeometry.clampOffset(Offset(300f, 300f), 1.005f, 1080f, 1920f)
         assertEquals(Offset.Zero, result)
     }
+
+    // 页码滑块：位置换算成页码，边界要卡死，不能让浮点误差跳出一页
+    @Test
+    fun sliderTopHitsFirstPage() {
+        assertEquals(0, PageGeometry.pageAt(0f, 1000f, 378))
+        assertEquals(0, PageGeometry.pageAt(-50f, 1000f, 378))
+    }
+
+    @Test
+    fun sliderBottomHitsLastPage() {
+        assertEquals(377, PageGeometry.pageAt(1000f, 1000f, 378))
+        assertEquals(377, PageGeometry.pageAt(1200f, 1000f, 378))
+    }
+
+    @Test
+    fun sliderMiddleIsProportional() {
+        // 0.5 * 377 = 188.5，四舍五入到 189；0.5 * 9 = 4.5 → 5
+        assertEquals(189, PageGeometry.pageAt(500f, 1000f, 378))
+        assertEquals(5, PageGeometry.pageAt(500f, 1000f, 10))
+    }
+
+    @Test
+    fun sliderDegenerateInputsDoNotCrash() {
+        assertEquals(0, PageGeometry.pageAt(500f, 0f, 378))
+        assertEquals(0, PageGeometry.pageAt(500f, 1000f, 1))
+        assertEquals(0, PageGeometry.pageAt(500f, 1000f, 0))
+    }
 }

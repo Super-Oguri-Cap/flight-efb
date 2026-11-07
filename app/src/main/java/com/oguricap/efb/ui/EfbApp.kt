@@ -82,6 +82,9 @@ fun EfbApp(
     var checklistArg by rememberSaveable { mutableStateOf("") }
     var checklistDoc by rememberSaveable { mutableStateOf("") }
 
+    // 阅读页全屏：顶栏由阅读页自己隐藏，这里只负责把底部标签栏一起收掉
+    var immersive by rememberSaveable { mutableStateOf(false) }
+
     // QRH 栈
     var qrhPage by rememberSaveable { mutableStateOf(PAGE_INDEX) }
     var qrhArg by rememberSaveable { mutableStateOf("") }
@@ -105,6 +108,8 @@ fun EfbApp(
     }
 
     fun chartBack() {
+        // 返回时一定要退全屏，否则标签栏会一直藏着
+        immersive = false
         when (chartPage) {
             PAGE_READER -> {
                 chartPage = if (readerFromSearch) PAGE_SEARCH else PAGE_AIRPORT
@@ -114,6 +119,7 @@ fun EfbApp(
     }
 
     fun checklistBack() {
+        immersive = false
         checklistPage = PAGE_LIST
     }
 
@@ -137,7 +143,7 @@ fun EfbApp(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            if (!immersive) NavigationBar {
                 NavigationBarItem(
                     selected = tab is Tab.Charts,
                     onClick = { tabKey = Tab.key(Tab.Charts) },
@@ -197,6 +203,7 @@ fun EfbApp(
                                 vm = vm,
                                 chart = readerChart,
                                 onBack = { chartBack() },
+                                onFullscreenChange = { immersive = it },
                             )
                         } else {
                             // 重建后当前机场的图还没取回，或索引已变；
@@ -207,6 +214,8 @@ fun EfbApp(
 
                     PAGE_SETTINGS -> SettingsScreen(
                         vm = vm,
+                        exclusivePhases = referenceVm.exclusivePhases,
+                        onToggleExclusive = { referenceVm.applyExclusivePhases(it) },
                         storageGranted = storageGranted,
                         onOpenSystemSettings = onRequestStorage,
                         onRerunOnboarding = onRestartOnboarding,
@@ -236,6 +245,7 @@ fun EfbApp(
                                 invert = vm.invertReader,
                                 onToggleInvert = { vm.toggleInvert() },
                                 onBack = { checklistBack() },
+                                onFullscreenChange = { immersive = it },
                             )
                         } else {
                             // 手册被删掉或 id 对不上时回列表，不要留空白页

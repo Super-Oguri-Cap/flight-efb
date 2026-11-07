@@ -11,6 +11,8 @@ class ReferenceLibrary private constructor(
 ) {
     companion object {
         private const val CHECKLIST_ASSET = "checklists.json"
+        // 用户自备检查单（PDF 转出来的文字版），结构与 checklists.json 相同
+        private const val CHECKLIST_CN_ASSET = "checklists_cn.json"
         private const val QRH_ASSET = "qrh.json"
 
         @Volatile
@@ -21,11 +23,22 @@ class ReferenceLibrary private constructor(
                 cached ?: load(context).also { cached = it }
             }
 
-        private fun load(context: Context): ReferenceLibrary =
-            ReferenceLibrary(
-                checklists = parseChecklists(readAsset(context, CHECKLIST_ASSET)),
+        private fun load(context: Context): ReferenceLibrary {
+            // 随附的文字版检查单单独一个文件：它来自用户自己的 PDF，
+            // 和 simchecklists 那批（MIT）来源不同，混在一个文件里不好交代出处。
+            val own = readOptionalAsset(context, CHECKLIST_CN_ASSET)
+                ?.let { parseChecklists(it) }
+                .orEmpty()
+            return ReferenceLibrary(
+                checklists = (parseChecklists(readAsset(context, CHECKLIST_ASSET)) + own)
+                    .sortedWith(compareBy({ AircraftCategory.rank(it.category) }, { it.name })),
                 qrh = parseQrh(readAsset(context, QRH_ASSET)),
             )
+        }
+
+        // 随附检查单缺失时不应该让整个库打不开，缺就少这一份
+        private fun readOptionalAsset(context: Context, name: String): JSONObject? =
+            runCatching { readAsset(context, name) }.getOrNull()
 
         private fun readAsset(context: Context, name: String): JSONObject =
             JSONObject(context.assets.open(name).bufferedReader().use { it.readText() })

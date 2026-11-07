@@ -32,6 +32,8 @@ import com.oguricap.efb.ui.ChartViewModel
 @Composable
 fun SettingsScreen(
     vm: ChartViewModel,
+    exclusivePhases: Boolean,
+    onToggleExclusive: (Boolean) -> Unit,
     storageGranted: Boolean,
     onOpenSystemSettings: () -> Unit,
     onRerunOnboarding: () -> Unit,
@@ -94,6 +96,24 @@ fun SettingsScreen(
                 Switch(
                     checked = vm.invertReader,
                     onCheckedChange = { vm.applyInvert(it) },
+                )
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("检查单分组互斥", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "打开后一次只展开一个阶段：点开「起飞前」，其它阶段自动收起",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = exclusivePhases,
+                    onCheckedChange = onToggleExclusive,
                 )
             }
             HorizontalDivider()
