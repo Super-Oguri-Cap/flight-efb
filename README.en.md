@@ -1,3 +1,5 @@
+[中文README](https://github.com/Super-Oguri-Cap/flight-efb/main/README.md)
+
 # FlightEFB
 
 An offline EFB for Android: browse AIP charts, aircraft checklists, and QRH on the ground or in the air, with no network access at all. Original chart files are never modified.
