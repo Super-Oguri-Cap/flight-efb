@@ -3,6 +3,8 @@ package com.oguricap.efb.ui.reader
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -17,6 +19,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,6 +66,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -160,9 +164,46 @@ fun PdfReaderScreen(
     // 按 2 倍屏宽出图。PdfRenderer 输出的是位图，放大只是把位图拉大：
     // 1 倍屏宽时放到 2.5 倍相当于插值 2.5 倍，字必然发虚；2 倍时只插值 1.25 倍，
     // 2.5 倍以内基本看不出模糊。代价是单页 RGB_565 约 13 MB，缓存已相应减到 2 页。
-    val widthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() * 2 }
+    // 横屏时屏宽会翻倍，不封顶的话单页位图会涨到 30 MB 以上（再加上高清档直接 OOM）。
+    // 2600 px 足够覆盖 1080p / 1440p 手机横过来之后的显示宽度。
+    val widthPx = minOf(
+        with(density) { configuration.screenWidthDp.dp.roundToPx() * 2 },
+        BASE_MAX_WIDTH_PX,
+    )
 
-    LaunchedEffect(documentKey, file) {
+    // ---- 横屏 ----
+    // 进阅读页就放开方向限制（FULL_SENSOR）：手机横过来自动变横屏，
+    // 即使系统里把「自动旋转」关了也生效 —— 因为这里直接改了 Activity 的期望方向。
+    // 顶栏的按钮再给一个手动开关，方便把手机插在支架上时固定方向。
+    val activity = LocalContext.current.findActivity()
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    DisposableEffect(documentKey) {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        onDispose {
+            // 离开阅读页恢复系统默认，不要把锁死的方向带出去
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    // 横屏自动全屏：横过来就是为了看图，顶栏和标签栏都让位给页面。
+    // 只记「这次全屏是转屏自动进的」，转回竖屏时才自动退出；
+    // 用户在横屏下手动按了圆叉退出，下一次转屏之前不会再被强行拉回全屏。
+    var autoFullscreen by remember(documentKey) { mutableStateOf(false) }
+    LaunchedEffect(isLandscape) {
+        if (isLandscape) {
+            if (!fullscreen) {
+                fullscreen = true
+                onFullscreenChange(true)
+                autoFullscreen = true
+            }
+        } else if (autoFullscreen) {
+            fullscreen = false
+            onFullscreenChange(false)
+            autoFullscreen = false
+        }
+    }
+
+    LaunchedEffect(documentKey, file, widthPx) {
         if (file == null) {
             // 文件还没准备好（例如手册正在从 assets 落盘），
             // 由调用方负责给出进度或错误；这里保持加载态即可
@@ -179,7 +220,11 @@ fun PdfReaderScreen(
                 opened.close()
                 return@LaunchedEffect
             }
+            // 转屏会改变渲染宽度，这里换新的渲染器；
+            // 旧的必须先关，否则每次旋转都泄漏一个 PdfRenderer 和文件句柄
+            val previous = document
             document = opened
+            previous?.close()
         }
         result.onFailure { error = it.message ?: it.toString() }
     }
@@ -253,26 +298,47 @@ fun PdfReaderScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = {
-                        fullscreen = true
-                        onFullscreenChange(true)
-                    }) {
+                    TextButton(
+                        onClick = {
+                            activity?.requestedOrientation = if (isLandscape) {
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            } else {
+                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text(if (isLandscape) "竖屏" else "横屏")
+                    }
+                    TextButton(
+                        onClick = {
+                            fullscreen = true
+                            onFullscreenChange(true)
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
                         Text("全屏")
                     }
                     if (scale > 1.01f) {
-                        TextButton(onClick = {
-                            scale = 1f
-                            offset = Offset.Zero
-                        }) {
+                        TextButton(
+                            onClick = {
+                                scale = 1f
+                                offset = Offset.Zero
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
                             Text("复位")
                         }
                     }
-                    TextButton(onClick = {
-                        onToggleInvert()
-                        scale = 1f
-                        offset = Offset.Zero
-                    }) {
-                        Text(if (invert) "反色 开" else "反色 关")
+                    TextButton(
+                        onClick = {
+                            onToggleInvert()
+                            scale = 1f
+                            offset = Offset.Zero
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text(if (invert) "反色开" else "反色关")
                     }
                 },
             )
@@ -627,6 +693,9 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 // 预渲染的防抖时长：滑得快时不断重置，停稳之后才真正渲染下一页
 private const val PREFETCH_DELAY_MS = 250L
+
+// 基准渲染宽度的上限：横屏时屏宽翻倍，不封顶会把内存吃穿
+private const val BASE_MAX_WIDTH_PX = 2600
 
 // 放大重绘的迟滞阈值：过 2 倍换高清，退回 1.6 倍以下才还原
 private const val HI_RES_ENTER = 2.0f

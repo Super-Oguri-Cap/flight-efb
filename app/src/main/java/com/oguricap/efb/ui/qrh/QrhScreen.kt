@@ -5,12 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
@@ -18,7 +18,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.oguricap.efb.data.QrhEntry
 import com.oguricap.efb.data.QrhSection
 import com.oguricap.efb.ui.ReferenceViewModel
+import com.oguricap.efb.ui.TwoLineTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,24 +141,10 @@ fun QrhSectionScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = section?.title ?: sectionId,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = section?.aircraft.orEmpty(),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
+            TwoLineTopBar(
+                title = section?.title ?: sectionId,
+                subtitle = section?.aircraft.orEmpty(),
+                onBack = onBack,
             )
         },
     ) { padding ->

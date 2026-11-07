@@ -18,10 +18,9 @@ android {
         applicationId = "com.oguricap.efb"
         minSdk = 34
         targetSdk = 36
-        // 1.1.x：航图选中置顶、检查单文字版与勾选、QRH 页码滑块与全屏、
-        //        放大自动重绘高清（1.1.1）
-        versionCode = 3
-        versionName = "1.1.1"
+        // 1.2.2：顶栏长标题不再裁掉说明行
+        versionCode = 6
+        versionName = "1.2.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -27,7 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +45,7 @@ import com.oguricap.efb.data.Chart
 import com.oguricap.efb.data.ChartType
 import com.oguricap.efb.data.PinKind
 import com.oguricap.efb.ui.ChartViewModel
+import com.oguricap.efb.ui.TwoLineTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,32 +97,16 @@ fun AirportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = icao + "  " + (airport?.name ?: ""),
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = buildString {
-                                append(vm.currentCharts.size).append(" 张图")
-                                val pinned = pinnedDeparture.size + pinnedArrival.size
-                                if (pinned > 0) append(" · 已选 ").append(pinned)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+            TwoLineTopBar(
+                title = icao + "  " + (airport?.name ?: ""),
+                subtitle = buildString {
+                    append(vm.currentCharts.size).append(" 张图")
+                    val pinned = pinnedDeparture.size + pinnedArrival.size
+                    if (pinned > 0) append(" · 已选 ").append(pinned)
                 },
-                navigationIcon = {
-                    IconButton(onClick = { if (selecting) quitSelecting() else onBack() }) {
-                        Icon(
-                            imageVector = if (selecting) Icons.Filled.Clear
-                            else Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = if (selecting) "退出选择" else "返回",
-                        )
-                    }
-                },
+                onBack = { if (selecting) quitSelecting() else onBack() },
+                backDescription = if (selecting) "退出选择" else "返回",
+                navIcon = if (selecting) Icons.Filled.Clear else Icons.AutoMirrored.Filled.ArrowBack,
                 actions = {
                     if (selecting) {
                         TextButton(onClick = { quitSelecting() }) { Text("完成") }

@@ -182,7 +182,10 @@ class PdfDocument(
 
     // 高清版按基准宽度的 1.5 倍出图：基准已是 2 倍屏宽，
     // 合起来能撑到 3 倍缩放仍然清晰（再往上就受内存限制了）
-    private fun hiResWidthPx(): Int = targetWidthPx * HI_RES_NUMERATOR / HI_RES_DENOMINATOR
+    private fun hiResWidthPx(): Int = minOf(
+        targetWidthPx * HI_RES_NUMERATOR / HI_RES_DENOMINATOR,
+        HI_RES_MAX_WIDTH_PX,
+    )
 
     companion object {
         // 分辨率按 1.5 倍屏宽出图后单页内存翻了一倍多，缓存相应减到 2 页
@@ -195,6 +198,9 @@ class PdfDocument(
         private const val HIRES_CACHE_PAGES = 1
         private const val HI_RES_NUMERATOR = 3
         private const val HI_RES_DENOMINATOR = 2
+
+        // 高清档的宽度上限：3200 px 下单页约 30 MB，再大就超出应用堆预算
+        private const val HI_RES_MAX_WIDTH_PX = 3200
         private const val PREVIEW_DIVISOR = 4
         private const val MIN_PREVIEW_WIDTH = 200
     }

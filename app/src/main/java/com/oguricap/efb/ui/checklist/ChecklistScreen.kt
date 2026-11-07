@@ -5,20 +5,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,6 +37,7 @@ import com.oguricap.efb.data.AircraftChecklist
 import com.oguricap.efb.data.ChecklistProgress
 import com.oguricap.efb.data.ReferenceDoc
 import com.oguricap.efb.ui.ReferenceViewModel
+import com.oguricap.efb.ui.TwoLineTopBar
 
 // 列表滚动位置的键：列表页与每架飞机的详情页各存一份
 private const val SCROLL_LIST = "checklist:list"
@@ -192,24 +192,12 @@ fun ChecklistDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = aircraft?.name ?: aircraftId,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = if (total > 0) "已勾 " + checkedCount + " / " + total + " 项" else "",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
+            // 长机型名（A319/A320/A321…）会折成两行，M3 的 TopAppBar 会把它下面的进度行裁掉，
+            // 这里换成按内容撑高的两行顶栏
+            TwoLineTopBar(
+                title = aircraft?.name ?: aircraftId,
+                subtitle = if (total > 0) "已勾 " + checkedCount + " / " + total + " 项" else "",
+                onBack = onBack,
                 actions = {
                     // 每份检查单各自的复位，只有勾过才可点
                     TextButton(
