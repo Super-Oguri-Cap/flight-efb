@@ -1,0 +1,513 @@
+{
+ "schemaVersion": 1,
+ "source": "用户提供的《A319/A320/A321 机型正常检查单（RNP APCH 版）》",
+ "notice": "由 tools/build_a320_cn.py 从 PDF 文字层转换；标记说明：(B) 双人确认，# RVSM 项目，* 客舱项目，【】RNP 项目。仅用于模拟飞行。",
+ "aircraft": [
+  {
+   "id": "cn_a320_normal",
+   "category": "airbus",
+   "name": "A319/A320/A321 正常检查单",
+   "note": "RNP APCH 版 · 文字版",
+   "source": "app/src/main/assets/docs/a320_normal_checklist.pdf",
+   "license": "用户自备资料",
+   "phases": [
+    {
+     "name": "开车前",
+     "gloss": "",
+     "items": [
+      {
+       "item": "移动电话",
+       "state": "关"
+      },
+      {
+       "item": "驾驶舱准备",
+       "state": "完成(B)"
+      },
+      {
+       "item": "起落架销子和堵盖",
+       "state": "取下"
+      },
+      {
+       "item": "旅客信号牌",
+       "state": "开/自动"
+      },
+      {
+       "item": "ADIRS",
+       "state": "导航位"
+      },
+      {
+       "item": "燃油量",
+       "state": "__吨，平衡"
+      },
+      {
+       "item": "起飞数据/速度游标",
+       "state": "调置(B)"
+      },
+      {
+       "item": "气压基准",
+       "state": "调置(B)"
+      },
+      {
+       "item": "高度标指示",
+       "state": "检查#"
+      },
+      {
+       "item": "【RNP 准备程序】",
+       "state": "按需完成"
+      }
+     ]
+    },
+    {
+     "name": "开车前 · 推出开车后",
+     "gloss": "",
+     "items": [
+      {
+       "item": "前轮转弯/防滞开关",
+       "state": "按需"
+      },
+      {
+       "item": "风挡/舱门",
+       "state": "关好/预位(B)"
+      },
+      {
+       "item": "防撞灯",
+       "state": "开"
+      },
+      {
+       "item": "推力手柄",
+       "state": "慢车"
+      },
+      {
+       "item": "停留刹车",
+       "state": "按需"
+      }
+     ]
+    },
+    {
+     "name": "开车后",
+     "gloss": "",
+     "items": [
+      {
+       "item": "前轮转弯/防滞开关",
+       "state": "开"
+      },
+      {
+       "item": "防冰",
+       "state": "按需"
+      },
+      {
+       "item": "ECAM 状态页面",
+       "state": "检查"
+      },
+      {
+       "item": "俯仰配平",
+       "state": "__调置"
+      },
+      {
+       "item": "方向舵配平",
+       "state": "零"
+      },
+      {
+       "item": "飞行操纵",
+       "state": "检查(B)"
+      },
+      {
+       "item": "飞行仪表",
+       "state": "检查(B)"
+      }
+     ]
+    },
+    {
+     "name": "起飞前",
+     "gloss": "",
+     "items": [
+      {
+       "item": "【RNP 按钮】",
+       "state": "按需"
+      },
+      {
+       "item": "【TERR ON ND】",
+       "state": "按需"
+      },
+      {
+       "item": "简令",
+       "state": "证实"
+      },
+      {
+       "item": "襟翼调置",
+       "state": "形态__(B)"
+      },
+      {
+       "item": "V1.VR.V2/灵活温度",
+       "state": "检查(B)"
+      },
+      {
+       "item": "ECAM 记忆",
+       "state": "起飞无蓝字"
+      },
+      {
+       "item": "旅客信号牌接通",
+       "state": ""
+      },
+      {
+       "item": "客舱准备好*",
+       "state": ""
+      },
+      {
+       "item": "扰流板预位",
+       "state": ""
+      },
+      {
+       "item": "襟翼起飞位",
+       "state": ""
+      },
+      {
+       "item": "自动刹车最大",
+       "state": ""
+      },
+      {
+       "item": "起飞形态正常",
+       "state": ""
+      },
+      {
+       "item": "客舱机组",
+       "state": "通知"
+      },
+      {
+       "item": "着陆灯、频闪灯",
+       "state": "开"
+      },
+      {
+       "item": "空调组件",
+       "state": "按需"
+      },
+      {
+       "item": "发动机方式选择",
+       "state": "按需"
+      },
+      {
+       "item": "风切变探测",
+       "state": "自动"
+      },
+      {
+       "item": "ATC",
+       "state": "调置"
+      },
+      {
+       "item": "【GPS 优先】",
+       "state": "有效"
+      },
+      {
+       "item": "【GPS 1+2】",
+       "state": "导航方式"
+      },
+      {
+       "item": "【FMA NAV 方式】",
+       "state": "预位"
+      }
+     ]
+    },
+    {
+     "name": "起飞后/爬升",
+     "gloss": "",
+     "items": [
+      {
+       "item": "起落架",
+       "state": "收上"
+      },
+      {
+       "item": "襟翼",
+       "state": "收上"
+      },
+      {
+       "item": "空调组件",
+       "state": "1+2 开"
+      },
+      {
+       "item": "气压基准",
+       "state": "调置（B）"
+      },
+      {
+       "item": "高度表指示",
+       "state": "交叉检查"
+      },
+      {
+       "item": "高度表指示",
+       "state": "交叉检查#"
+      }
+     ]
+    },
+    {
+     "name": "下降（距下降顶点50海里）",
+     "gloss": "",
+     "items": [
+      {
+       "item": "MCDU",
+       "state": "输好"
+      },
+      {
+       "item": "ECAM",
+       "state": "检查"
+      },
+      {
+       "item": "座椅安全带灯",
+       "state": "开"
+      },
+      {
+       "item": "【RNP 进近简令】",
+       "state": "证实"
+      },
+      {
+       "item": "自动刹车",
+       "state": "按需"
+      },
+      {
+       "item": "【TERR ON ND】",
+       "state": "按需"
+      },
+      {
+       "item": "【RNP 按钮】",
+       "state": "按需"
+      },
+      {
+       "item": "【进程页面RNP 精度】",
+       "state": "PF 侧显示"
+      }
+     ]
+    },
+    {
+     "name": "进近（过渡高度层后）FAF点前",
+     "gloss": "",
+     "items": [
+      {
+       "item": "气压/MDH/DH",
+       "state": "__调置(B)"
+      },
+      {
+       "item": "【高度表指示】",
+       "state": "交叉检查"
+      },
+      {
+       "item": "无线电导航【RNP 拒选】",
+       "state": "检查"
+      },
+      {
+       "item": "发动机方式选择",
+       "state": "按需"
+      },
+      {
+       "item": "【GPS 1+2】",
+       "state": "同在NAV 方式"
+      },
+      {
+       "item": "【GPS 优先】",
+       "state": "检查"
+      }
+     ]
+    },
+    {
+     "name": "着陆",
+     "gloss": "",
+     "items": [
+      {
+       "item": "客舱机组",
+       "state": "通知"
+      },
+      {
+       "item": "自动推力",
+       "state": "速度方式 /脱开"
+      },
+      {
+       "item": "复飞高度",
+       "state": "调好"
+      },
+      {
+       "item": "ECAM 记忆",
+       "state": "着陆无蓝字"
+      },
+      {
+       "item": "旅客信号牌接通",
+       "state": ""
+      },
+      {
+       "item": "客舱准备好*",
+       "state": ""
+      },
+      {
+       "item": "起落架放下",
+       "state": ""
+      },
+      {
+       "item": "襟翼着陆位",
+       "state": ""
+      },
+      {
+       "item": "扰流板预位",
+       "state": ""
+      },
+      {
+       "item": "【复飞】",
+       "state": ""
+      },
+      {
+       "item": "【NAV 导航模式】",
+       "state": "立即选择"
+      }
+     ]
+    },
+    {
+     "name": "着陆后",
+     "gloss": "",
+     "items": [
+      {
+       "item": "襟翼",
+       "state": "收上"
+      },
+      {
+       "item": "扰流板",
+       "state": "解除预位"
+      },
+      {
+       "item": "雷达、风切变探测",
+       "state": "关"
+      },
+      {
+       "item": "ATC",
+       "state": "调置"
+      },
+      {
+       "item": "频闪灯",
+       "state": "自动"
+      },
+      {
+       "item": "APU",
+       "state": "按需/启动"
+      }
+     ]
+    },
+    {
+     "name": "停机",
+     "gloss": "",
+     "items": [
+      {
+       "item": "APU 引气",
+       "state": "按需"
+      },
+      {
+       "item": "发动机",
+       "state": "关"
+      },
+      {
+       "item": "安全带灯",
+       "state": "关"
+      },
+      {
+       "item": "外部灯光",
+       "state": "按需"
+      },
+      {
+       "item": "燃油泵",
+       "state": "关"
+      },
+      {
+       "item": "停留刹车/轮挡",
+       "state": "按需"
+      },
+      {
+       "item": "考虑大雨",
+       "state": ""
+      }
+     ]
+    },
+    {
+     "name": "离机安全",
+     "gloss": "",
+     "items": [
+      {
+       "item": "ADIRS",
+       "state": "关"
+      },
+      {
+       "item": "氧气",
+       "state": "关"
+      },
+      {
+       "item": "APU 引气",
+       "state": "关"
+      },
+      {
+       "item": "紧急出口灯",
+       "state": "关"
+      },
+      {
+       "item": "禁止吸烟灯",
+       "state": "关"
+      },
+      {
+       "item": "APU 和电瓶",
+       "state": "按需考虑寒冷天气"
+      }
+     ]
+    },
+    {
+     "name": "紧急撤离",
+     "gloss": "",
+     "items": [
+      {
+       "item": "飞机/停留刹车",
+       "state": "停住/刹上"
+      },
+      {
+       "item": "-ATC（VHF 1）",
+       "state": "通知"
+      },
+      {
+       "item": "-客舱机组（PA）",
+       "state": "通知"
+      },
+      {
+       "item": "-压差（若用人工座舱增压）",
+       "state": "检查为零"
+      },
+      {
+       "item": "若不为零，则调置方式选择为人工及垂直速度控制向上最大。",
+       "state": ""
+      },
+      {
+       "item": "-发动机主电门（所有）",
+       "state": "关断"
+      },
+      {
+       "item": "-所有灭火按钮（发动机、APU）",
+       "state": "按压"
+      },
+      {
+       "item": "-灭火瓶（发动机和APU）",
+       "state": "按需"
+      },
+      {
+       "item": "■ 若需要撤离：",
+       "state": ""
+      },
+      {
+       "item": "-撤离",
+       "state": "开始"
+      },
+      {
+       "item": "-所有电瓶",
+       "state": "关闭"
+      },
+      {
+       "item": "■ 若不需要撤离：",
+       "state": ""
+      },
+      {
+       "item": "-客舱机组和旅客（PA)",
+       "state": "通知"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

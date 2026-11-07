@@ -11,6 +11,8 @@ import com.oguricap.efb.data.Chart
 import com.oguricap.efb.data.ChartIndex
 import com.oguricap.efb.data.ChartScanner
 import com.oguricap.efb.data.IndexBuilder
+import com.oguricap.efb.data.PinKind
+import com.oguricap.efb.data.PinStore
 import com.oguricap.efb.data.SpecExporter
 import com.oguricap.efb.perf.Perf
 import com.oguricap.efb.prefs.Settings
@@ -28,6 +30,9 @@ import java.io.File
 class ChartViewModel(app: Application) : AndroidViewModel(app) {
 
     private val settings = Settings(app)
+
+    // 选中航图的落盘位置：离场区 / 进场区
+    private val pinStore = PinStore(app)
 
     @JvmSynthetic
     internal var io: CoroutineDispatcher = Dispatchers.IO
@@ -57,6 +62,13 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     var expandedTypes: Set<String> by mutableStateOf(emptySet())
+        private set
+
+    // 选中后置顶的两组图，进程重建后从磁盘恢复
+    var departures: List<Chart> by mutableStateOf(pinStore.load(PinKind.DEPARTURE))
+        private set
+
+    var arrivals: List<Chart> by mutableStateOf(pinStore.load(PinKind.ARRIVAL))
         private set
 
     var chartRoot: String? by mutableStateOf(settings.chartRoot)
@@ -195,6 +207,49 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleType(type: String) {
         expandedTypes = if (type in expandedTypes) expandedTypes - type else expandedTypes + type
+    }
+
+    // ---- 选中航图（离场区 / 进场区） ----
+
+    fun pinned(kind: PinKind): List<Chart> =
+        if (kind == PinKind.DEPARTURE) departures else arrivals
+
+    fun pinKindOf(chart: Chart): PinKind? = when {
+        departures.any { it.file == chart.file } -> PinKind.DEPARTURE
+        arrivals.any { it.file == chart.file } -> PinKind.ARRIVAL
+        else -> null
+    }
+
+    // 把选中的图放进某一组。同一张图只能待在一个组里：
+    // 先整体从另一组剔掉，再加入本组，避免两边各出现一次。
+    fun pinCharts(charts: List<Chart>, kind: PinKind) {
+        if (charts.isEmpty()) return
+        val files = charts.map { it.file }.toSet()
+        val keepDeparture = departures.filterNot { it.file in files }
+        val keepArrival = arrivals.filterNot { it.file in files }
+        val target = (if (kind == PinKind.DEPARTURE) keepDeparture else keepArrival).toMutableList()
+        charts.forEach { chart ->
+            if (target.none { it.file == chart.file }) target.add(chart)
+        }
+        val nextDeparture = if (kind == PinKind.DEPARTURE) target else keepDeparture
+        val nextArrival = if (kind == PinKind.DEPARTURE) keepArrival else target
+        departures = nextDeparture
+        arrivals = nextArrival
+        pinStore.save(PinKind.DEPARTURE, nextDeparture)
+        pinStore.save(PinKind.ARRIVAL, nextArrival)
+    }
+
+    // 从分组里移出（两个组一起扫，调用方不用关心这张图在哪儿）
+    fun unpinCharts(charts: List<Chart>) {
+        if (charts.isEmpty()) return
+        val files = charts.map { it.file }.toSet()
+        val nextDeparture = departures.filterNot { it.file in files }
+        val nextArrival = arrivals.filterNot { it.file in files }
+        if (nextDeparture == departures && nextArrival == arrivals) return
+        departures = nextDeparture
+        arrivals = nextArrival
+        pinStore.save(PinKind.DEPARTURE, nextDeparture)
+        pinStore.save(PinKind.ARRIVAL, nextArrival)
     }
 
     fun absoluteFile(chart: Chart): File? =

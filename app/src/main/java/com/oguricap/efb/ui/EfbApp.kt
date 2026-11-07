@@ -24,6 +24,7 @@ import com.oguricap.efb.data.Chart
 import com.oguricap.efb.ui.charts.AirportScreen
 import com.oguricap.efb.ui.checklist.ChecklistDetailScreen
 import com.oguricap.efb.ui.checklist.ChecklistListScreen
+import com.oguricap.efb.ui.checklist.ReferenceDocScreen
 import com.oguricap.efb.ui.qrh.QrhScreen
 import com.oguricap.efb.ui.qrh.QrhSectionScreen
 import com.oguricap.efb.ui.reader.ReaderScreen
@@ -76,9 +77,13 @@ fun EfbApp(
     // 返回键必须回到来路，否则用户从搜索结果打开的图，退回机场页是另一个上下文。
     var readerFromSearch by rememberSaveable { mutableStateOf(false) }
 
-    // 检查单栈
+    // 检查单栈：列表 / 机型详情 / 随附 PDF 手册
     var checklistPage by rememberSaveable { mutableStateOf(PAGE_LIST) }
     var checklistArg by rememberSaveable { mutableStateOf("") }
+    var checklistDoc by rememberSaveable { mutableStateOf("") }
+
+    // 阅读页全屏：顶栏由阅读页自己隐藏，这里只负责把底部标签栏一起收掉
+    var immersive by rememberSaveable { mutableStateOf(false) }
 
     // QRH 栈
     var qrhPage by rememberSaveable { mutableStateOf(PAGE_INDEX) }
@@ -103,6 +108,8 @@ fun EfbApp(
     }
 
     fun chartBack() {
+        // 返回时一定要退全屏，否则标签栏会一直藏着
+        immersive = false
         when (chartPage) {
             PAGE_READER -> {
                 chartPage = if (readerFromSearch) PAGE_SEARCH else PAGE_AIRPORT
@@ -112,6 +119,7 @@ fun EfbApp(
     }
 
     fun checklistBack() {
+        immersive = false
         checklistPage = PAGE_LIST
     }
 
@@ -135,7 +143,7 @@ fun EfbApp(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            if (!immersive) NavigationBar {
                 NavigationBarItem(
                     selected = tab is Tab.Charts,
                     onClick = { tabKey = Tab.key(Tab.Charts) },
@@ -195,6 +203,7 @@ fun EfbApp(
                                 vm = vm,
                                 chart = readerChart,
                                 onBack = { chartBack() },
+                                onFullscreenChange = { immersive = it },
                             )
                         } else {
                             // 重建后当前机场的图还没取回，或索引已变；
@@ -205,6 +214,8 @@ fun EfbApp(
 
                     PAGE_SETTINGS -> SettingsScreen(
                         vm = vm,
+                        exclusivePhases = referenceVm.exclusivePhases,
+                        onToggleExclusive = { referenceVm.applyExclusivePhases(it) },
                         storageGranted = storageGranted,
                         onOpenSystemSettings = onRequestStorage,
                         onRerunOnboarding = onRestartOnboarding,
@@ -219,7 +230,28 @@ fun EfbApp(
                             checklistArg = id
                             checklistPage = PAGE_DETAIL
                         },
+                        onOpenDoc = { id ->
+                            checklistDoc = id
+                            checklistPage = PAGE_DOC
+                        },
                     )
+
+                    PAGE_DOC -> {
+                        val doc = referenceVm.doc(checklistDoc)
+                        if (doc != null) {
+                            ReferenceDocScreen(
+                                doc = doc,
+                                // 反色开关与航图阅读页共用一份设置，切过去不用重新设
+                                invert = vm.invertReader,
+                                onToggleInvert = { vm.toggleInvert() },
+                                onBack = { checklistBack() },
+                                onFullscreenChange = { immersive = it },
+                            )
+                        } else {
+                            // 手册被删掉或 id 对不上时回列表，不要留空白页
+                            LaunchedEffect(Unit) { checklistPage = PAGE_LIST }
+                        }
+                    }
 
                     else -> ChecklistDetailScreen(
                         vm = referenceVm,
@@ -254,5 +286,6 @@ private const val PAGE_READER = "reader"
 private const val PAGE_SETTINGS = "settings"
 private const val PAGE_LIST = "list"
 private const val PAGE_DETAIL = "detail"
+private const val PAGE_DOC = "doc"
 private const val PAGE_INDEX = "index"
 private const val PAGE_SECTION = "section"

@@ -5,8 +5,10 @@ plugins {
 }
 
 android {
-    // 同上：编译产物输出到纯 ASCII 路径
-    layout.buildDirectory.set(file("E:/Android/efb-build/app"))
+    // 编译产物目录默认留在工程内（app/build）。
+    // 工程路径含中文的机器上，测试进程会读不到 classpath，
+    // 那时用 -Pefb.buildDir=E:/Android/efb-build/app 指到纯 ASCII 路径。
+    providers.gradleProperty("efb.buildDir").orNull?.let { layout.buildDirectory.set(file(it)) }
 
     namespace = "com.oguricap.efb"
     compileSdk = 36
@@ -16,8 +18,9 @@ android {
         applicationId = "com.oguricap.efb"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // 1.2.2：顶栏长标题不再裁掉说明行
+        versionCode = 6
+        versionName = "1.2.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

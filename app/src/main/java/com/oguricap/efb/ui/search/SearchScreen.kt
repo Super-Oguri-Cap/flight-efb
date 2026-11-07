@@ -129,6 +129,24 @@ fun SearchScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) { CircularProgressIndicator() }
                 else -> LazyColumn(state = searchState, modifier = Modifier.fillMaxSize()) {
+                    // 已选航图跨机场汇总：一次飞行只用得上几张图，
+                    // 从 A 机场的离场图跳到 B 机场的进场图不必先搜机场
+                    if (vm.departures.isNotEmpty()) {
+                        item(key = "pin-dep-header") {
+                            SectionHeader("离场（已选 " + vm.departures.size + "）")
+                        }
+                        items(vm.departures, key = { "pin-dep-" + it.file }) { chart ->
+                            PinnedHitRow(chart) { onOpenChart(chart) }
+                        }
+                    }
+                    if (vm.arrivals.isNotEmpty()) {
+                        item(key = "pin-arr-header") {
+                            SectionHeader("进场（已选 " + vm.arrivals.size + "）")
+                        }
+                        items(vm.arrivals, key = { "pin-arr-" + it.file }) { chart ->
+                            PinnedHitRow(chart) { onOpenChart(chart) }
+                        }
+                    }
                     if (vm.chartHits.isNotEmpty()) {
                         item {
                             SectionHeader("图名匹配 " + vm.chartHits.size + " 条")
@@ -179,6 +197,33 @@ private fun AirportRow(airport: Airport, onClick: () -> Unit) {
         Text(
             text = airport.chartCount.toString(),
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+// 已选航图的紧凑行：机场码 + 图名，点击直接开图
+@Composable
+private fun PinnedHitRow(chart: com.oguricap.efb.data.Chart, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = chart.icao,
+            fontFamily = FontFamily.Monospace,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = "  " + chart.title,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = ChartType.label(chart.chartType),
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

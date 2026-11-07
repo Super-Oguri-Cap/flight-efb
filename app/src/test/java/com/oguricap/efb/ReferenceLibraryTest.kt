@@ -21,7 +21,8 @@ class ReferenceLibraryTest {
     @Test
     fun loadsEveryAircraft() {
         val lib = library()
-        assertEquals(21, lib.checklists.size)
+        // 21 个机型的 simchecklists + 1 份用户自备的 A320 正常检查单（文字版）
+        assertEquals(22, lib.checklists.size)
     }
 
     @Test
@@ -52,9 +53,10 @@ class ReferenceLibraryTest {
 
     @Test
     fun everyPhaseHasChineseGloss() {
-        val missing = library().checklists.flatMap { ac ->
-            ac.phases.filter { it.gloss.isBlank() }.map { ac.id + "/" + it.name }
-        }
+        // 只有英文的 simchecklists 需要补中文解释；随附检查单本来就是中文
+        val missing = library().checklists
+            .filter { it.source.contains("simchecklists") }
+            .flatMap { ac -> ac.phases.filter { it.gloss.isBlank() }.map { ac.id + "/" + it.name } }
         assertTrue("阶段名缺中文解释: " + missing, missing.isEmpty())
     }
 
@@ -77,9 +79,26 @@ class ReferenceLibraryTest {
     @Test
     fun checklistProvenanceIsRecorded() {
         library().checklists.forEach { ac ->
-            assertTrue(ac.source.contains("simchecklists"))
-            assertEquals("MIT", ac.license)
+            assertTrue(ac.id + " 缺来源", ac.source.isNotBlank())
+            assertTrue(ac.id + " 缺许可", ac.license.isNotBlank())
         }
+        // 来自 simchecklists 的那批必须标 MIT
+        library().checklists
+            .filter { it.source.contains("simchecklists") }
+            .forEach { assertEquals("MIT", it.license) }
+    }
+
+    // 随附的 A320 正常检查单是从用户 PDF 转出来的文字版：
+    // 条目数要与 tools/build_a320_cn.py 的输出一致，转换脚本改坏了这里会先报
+    @Test
+    fun bundledA320NormalChecklistIsText() {
+        val ac = library().checklists.first { it.id == "cn_a320_normal" }
+        assertEquals("A319/A320/A321 正常检查单", ac.name)
+        assertEquals(12, ac.phases.size)
+        assertEquals(106, ac.itemCount)
+        assertEquals("开车前", ac.phases.first().name)
+        assertEquals("移动电话", ac.phases.first().items.first().item)
+        assertEquals("关", ac.phases.first().items.first().state)
     }
 
     @Test
