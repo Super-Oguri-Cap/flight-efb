@@ -1,4 +1,4 @@
-[中文README](https://github.com/Super-Oguri-Cap/flight-efb/main/README.md)
+[中文README](https://github.com/Super-Oguri-Cap/flight-efb/blob/main/README.md)
 
 # FlightEFB
 
