@@ -32,9 +32,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -58,7 +59,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import java.io.File
 
+// 航图阅读页：把 Chart 翻译成「文件 + 标题」，正文交给 PdfReaderScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
@@ -66,13 +69,39 @@ fun ReaderScreen(
     chart: Chart,
     onBack: () -> Unit,
 ) {
-    val file = vm.absoluteFile(chart)
-    var document by remember(chart.id) { mutableStateOf<PdfDocument?>(null) }
-    var error by remember(chart.id) { mutableStateOf<String?>(null) }
-    var scale by remember(chart.id) { mutableFloatStateOf(1f) }
-    var offset by remember(chart.id) { mutableStateOf(Offset.Zero) }
-    var savedPage by rememberSaveable(chart.id) { mutableIntStateOf(0) }
-    var savedOffset by rememberSaveable(chart.id) { mutableIntStateOf(0) }
+    PdfReaderScreen(
+        file = vm.absoluteFile(chart),
+        documentKey = chart.id,
+        title = chart.title,
+        subtitlePrefix = chart.icao + " · " + ChartType.label(chart.chartType),
+        filePendingMessage = "还没有设置航图库目录，请回到设置页选择",
+        invert = vm.invertReader,
+        onToggleInvert = { vm.toggleInvert() },
+        onBack = onBack,
+    )
+}
+
+// 通用 PDF 阅读页。航图与随附手册共用：
+// 只有「文件从哪来」不同，缩放 / 反色 / 翻页的手势与状态管理完全一致，
+// 分成两份实现迟早会走偏，所以这里只留一个入口。
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PdfReaderScreen(
+    file: File?,
+    documentKey: String,
+    title: String,
+    subtitlePrefix: String,
+    filePendingMessage: String,
+    invert: Boolean,
+    onToggleInvert: () -> Unit,
+    onBack: () -> Unit,
+) {
+    var document by remember(documentKey) { mutableStateOf<PdfDocument?>(null) }
+    var error by remember(documentKey) { mutableStateOf<String?>(null) }
+    var scale by remember(documentKey) { mutableFloatStateOf(1f) }
+    var offset by remember(documentKey) { mutableStateOf(Offset.Zero) }
+    var savedPage by rememberSaveable(documentKey) { mutableIntStateOf(0) }
+    var savedOffset by rememberSaveable(documentKey) { mutableIntStateOf(0) }
     // 滚动位置跨重建保留，否则切字体大小回来会跳回第一页
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = savedPage,
@@ -92,9 +121,10 @@ fun ReaderScreen(
     val density = LocalDensity.current
     val widthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }
 
-    LaunchedEffect(chart.id) {
+    LaunchedEffect(documentKey, file) {
         if (file == null) {
-            error = "还没有设置航图库目录，请回到设置页选择"
+            // 文件还没准备好（例如手册正在从 assets 落盘），
+            // 由调用方负责给出进度或错误；这里保持加载态即可
             return@LaunchedEffect
         }
         val result = withContext(Dispatchers.IO) {
@@ -113,19 +143,21 @@ fun ReaderScreen(
         result.onFailure { error = it.message ?: it.toString() }
     }
 
-    DisposableEffect(chart.id) {
+    DisposableEffect(documentKey) {
         onDispose { document?.close() }
     }
 
     // 当前页渲染完后立刻预渲染下一页
-    LaunchedEffect(document, vm.invertReader) {
+    LaunchedEffect(document, invert) {
         val doc = document ?: return@LaunchedEffect
         snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
             withContext(Dispatchers.IO) {
-                runCatching { doc.prefetch(index + 1, vm.invertReader) }
+                runCatching { doc.prefetch(index + 1, invert) }
             }
         }
     }
+
+    val pageCount = document?.pageCount ?: 0
 
     Scaffold(
         topBar = {
@@ -133,18 +165,17 @@ fun ReaderScreen(
                 title = {
                     Column {
                         Text(
-                            text = chart.title,
+                            text = title,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = buildString {
-                                append(chart.icao).append(" · ").append(ChartType.label(chart.chartType))
-                                val count = document?.pageCount ?: 0
-                                if (count > 1) {
+                                append(subtitlePrefix)
+                                if (pageCount > 1) {
                                     append(" · 第 ").append(listState.firstVisibleItemIndex + 1)
-                                        .append('/').append(count).append(" 页")
+                                        .append('/').append(pageCount).append(" 页")
                                 }
                             },
                             style = MaterialTheme.typography.labelMedium,
@@ -166,11 +197,11 @@ fun ReaderScreen(
                         }
                     }
                     TextButton(onClick = {
-                        vm.toggleInvert()
+                        onToggleInvert()
                         scale = 1f
                         offset = Offset.Zero
                     }) {
-                        Text(if (vm.invertReader) "反色 开" else "反色 关")
+                        Text(if (invert) "反色 开" else "反色 关")
                     }
                 },
             )
@@ -185,6 +216,11 @@ fun ReaderScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
+                file == null -> Text(
+                    text = filePendingMessage,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                )
                 doc == null -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 doc.pageCount == 0 -> Text(
                     text = "这份 PDF 没有可显示的页面",
@@ -193,14 +229,13 @@ fun ReaderScreen(
                 )
                 else -> LazyColumn(
                     state = listState,
+                    // 手势层必须装在 graphicsLayer 外面。
+                    // 反过来（先缩放再收手势）时，指针坐标落在图层内部，
+                    // 已经被 scale 除过一次：2.5 倍下手指推 100 px 只算 40 px，
+                    // 表现就是「放大以后怎么推都推不动」。装在外面拿到的就是屏幕像素，
+                    // 位移与手指 1:1，offset 与 zoomAround 的换算也全部留在屏幕空间里。
                     modifier = Modifier.fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            translationX = offset.x
-                            translationY = offset.y
-                        }
-                        .pointerInput(chart.id) {
+                        .pointerInput(documentKey) {
                             // 手势分配：
                             //   双指       捏合缩放与平移
                             //   放大后单指 推图；推到边界后剩余位移交给列表翻页
@@ -233,13 +268,21 @@ fun ReaderScreen(
                             }
 
                             awaitEachGesture {
-                                val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                // 全程走 Initial 阶段：这个阶段由外向内派发，
+                                // 比 LazyColumn 自己的滚动先一步拿到事件。
+                                // 用 Main 的话列表会先把位移吃掉，放大后表现为
+                                // 「图推得慢，页还在滚」——两个动作同时生效。
+                                val firstDown = awaitFirstDown(
+                                    requireUnconsumed = false,
+                                    pass = PointerEventPass.Initial,
+                                )
                                 var moved = false
                                 if (scale > 1.01f) firstDown.consume()
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val pressed = event.changes.count { it.pressed }
-                                    if (pressed >= 2) {
+                                var anyPressed = true
+                                while (anyPressed) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val downCount = event.changes.count { it.pressed }
+                                    if (downCount >= 2) {
                                         moved = true
                                         val zoom = event.calculateZoom()
                                         val pan = event.calculatePan()
@@ -254,23 +297,32 @@ fun ReaderScreen(
                                             )
                                         }
                                         event.changes.forEach { it.consume() }
-                                    } else if (pressed == 1 && scale > 1.01f) {
+                                    } else if (downCount == 1) {
+                                        // 先分清「拖动」与「点按」：位移超过阈值才算拖动。
+                                        // 用 pan != 0 判定的话，点按时的几像素抖动会被当成拖动，
+                                        // 双击缩放就再也触发不了。
                                         val pan = event.calculatePan()
-                                        if (pan != Offset.Zero) moved = true
-                                        val maxX = size.width * (scale - 1f) / 2f
-                                        val maxY = size.height * (scale - 1f) / 2f
-                                        val rawX = offset.x + pan.x
-                                        val rawY = offset.y + pan.y
-                                        val boundX = rawX.coerceIn(-maxX, maxX)
-                                        val boundY = rawY.coerceIn(-maxY, maxY)
-                                        offset = Offset(boundX, boundY)
-                                        val leftoverY = rawY - boundY
-                                        if (leftoverY != 0f) {
-                                            listState.dispatchRawDelta(-leftoverY)
+                                        if (pan.getDistance() > TOUCH_SLOP) moved = true
+                                        if (scale > 1.01f) {
+                                            val maxX = size.width * (scale - 1f) / 2f
+                                            val maxY = size.height * (scale - 1f) / 2f
+                                            val rawX = offset.x + pan.x
+                                            val rawY = offset.y + pan.y
+                                            val boundX = rawX.coerceIn(-maxX, maxX)
+                                            val boundY = rawY.coerceIn(-maxY, maxY)
+                                            offset = Offset(boundX, boundY)
+                                            val leftoverY = rawY - boundY
+                                            if (leftoverY != 0f) {
+                                                // 列表内容整体被 scale 放大过，
+                                                // 换算回内容坐标才能和手指位移对上
+                                                listState.dispatchRawDelta(-leftoverY / scale)
+                                            }
+                                            event.changes.forEach { it.consume() }
                                         }
-                                        event.changes.forEach { it.consume() }
+                                        // 未放大时故意不消费事件，让列表照常滚动
                                     }
-                                } while (event.changes.any { it.pressed })
+                                    anyPressed = event.changes.any { it.pressed }
+                                }
 
                                 if (!moved) {
                                     val now = System.currentTimeMillis()
@@ -284,10 +336,16 @@ fun ReaderScreen(
                                     }
                                 }
                             }
+                        }
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
                         },
                 ) {
                     items((0 until doc.pageCount).toList(), key = { it }) { index ->
-                        PdfPageItem(doc, index, vm.invertReader)
+                        PdfPageItem(doc, index, invert)
                     }
                 }
             }
@@ -333,3 +391,6 @@ private fun PdfPageItem(document: PdfDocument, index: Int, invert: Boolean) {
         }
     }
 }
+
+// 单指位移超过这个值就按「拖动」处理，不再参与双击判定
+private const val TOUCH_SLOP = 8f

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -23,6 +24,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -38,6 +41,18 @@ fun QrhScreen(
     vm: ReferenceViewModel,
     onOpenSection: (String) -> Unit,
 ) {
+    // 切到别的标签页再切回来时，Composable 会重新组合；
+    // 位置存在 ViewModel 里，回来还停在原来那一条，不会弹回顶部
+    val saved = vm.savedScroll(SCROLL_QRH_INDEX)
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = saved?.first ?: 0,
+        initialFirstVisibleItemScrollOffset = saved?.second ?: 0,
+    )
+    LaunchedEffect(listState, vm.qrh.sections.size) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> vm.rememberScroll(SCROLL_QRH_INDEX, index, offset) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -53,7 +68,7 @@ fun QrhScreen(
             )
         },
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding)) {
             item(key = "notice") {
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -112,6 +127,18 @@ fun QrhSectionScreen(
     onBack: () -> Unit,
 ) {
     val section = vm.section(sectionId)
+    // 分组页同样记住位置：翻到一半去别处看一眼再回来，不该从头开始
+    val key = SCROLL_QRH_SECTION_PREFIX + sectionId
+    val saved = vm.savedScroll(key)
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = saved?.first ?: 0,
+        initialFirstVisibleItemScrollOffset = saved?.second ?: 0,
+    )
+    LaunchedEffect(listState, sectionId) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> vm.rememberScroll(key, index, offset) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -139,7 +166,7 @@ fun QrhSectionScreen(
             Text("没有这个分组", modifier = Modifier.padding(padding).padding(16.dp))
             return@Scaffold
         }
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding)) {
             items(section.entries, key = { it.ata + it.title }) { entry ->
                 EntryBlock(
                     entry = entry,
@@ -216,3 +243,7 @@ private fun EntryBlock(entry: QrhEntry, expanded: Boolean, onToggle: () -> Unit)
         }
     }
 }
+
+// 滚动位置的键：QRH 索引一份，每个分组各一份
+private const val SCROLL_QRH_INDEX = "qrh:index"
+private const val SCROLL_QRH_SECTION_PREFIX = "qrh:section:"

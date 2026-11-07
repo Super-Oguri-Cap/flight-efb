@@ -18,6 +18,9 @@ keystore/
 # 航图 PDF 不入库，测试夹具除外
 *.pdf
 !app/src/test/resources/*.pdf
+# 检查单页随附的两份手册（A320 正常检查单 / 吉祥 QRH）同样不入库：
+# 体积大且是第三方受控手册，换机器后跑 tools/import_docs.py 恢复
+!app/src/main/assets/docs/.gitkeep
 
 # 容器与安装包
 *.apk
