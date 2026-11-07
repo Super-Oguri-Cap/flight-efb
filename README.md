@@ -1,3 +1,5 @@
+[en.README](https://gitee.com/Super_Oguri_Cap/flight-efb/blob/master/README.en.md)
+
 # 飞行EFB
 
 Android 手机上的离线 EFB：查阅 AIP 航图、随机检查单与 QRH。全程无网络，原始资料只读。
