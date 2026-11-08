@@ -76,6 +76,7 @@ export ANDROID_HOME=/path/to/android-sdk
 | `assets/charts.db` | 预置航图索引（620 KB） |
 | `assets/checklists.json` | 检查单数据 |
 | `assets/qrh.json` | QRH 数据 |
+| `assets/docs/*.pdf` | 随附的两份检查单手册原件（A320 正常检查单 / 吉祥航空 QRH），随仓库分发 |
 | `assets/library_spec.md` | 规范文档，可在设置里导出 |
 
 换航图库时在应用内重新扫描即可，不必重新编译。
@@ -150,7 +151,7 @@ app/src/main/java/com/oguricap/efb/
 
 ### 航图
 
-本仓库不包含任何航图 PDF。航图由使用者自行准备，其版权归原发布机构所有。
+本仓库不包含任何航图 PDF。航图由使用者自行准备，其版权归原发布机构所有。检查单页随附的两份手册 PDF 随仓库分发，版权状态见 `NOTICE.md`。
 
 ### 本项目许可
 
