@@ -78,6 +78,42 @@ class ChartViewModelTest {
         assertEquals(listOf("ZPPP"), vm.airports.map { it.icao })
     }
 
+    // 搜 ZGGG 要的是「广州白云」这个机场大类，不是 119 张散图
+    @Test
+    fun typingIcaoShowsOnlyAirportCategory() = runTest(dispatcher) {
+        val vm = newViewModel()
+        vm.load()
+        advanceUntilIdle()
+        vm.onQueryChange("ZGGG")
+        advanceUntilIdle()
+        assertEquals(listOf("ZGGG"), vm.airports.map { it.icao })
+        assertEquals("广州白云", vm.airports.first().name)
+        assertTrue("搜机场时不应再列具体航图", vm.chartHits.isEmpty())
+    }
+
+    @Test
+    fun typingChineseAirportNameShowsOnlyAirportCategory() = runTest(dispatcher) {
+        val vm = newViewModel()
+        vm.load()
+        advanceUntilIdle()
+        vm.onQueryChange("广州")
+        advanceUntilIdle()
+        assertTrue(vm.airports.isNotEmpty())
+        assertTrue("中文机场名同样不该带出一堆图名匹配", vm.chartHits.isEmpty())
+    }
+
+    // 图名搜索仍然可用：查询词没命中机场时才列具体航图
+    @Test
+    fun typingChartKeywordStillListsCharts() = runTest(dispatcher) {
+        val vm = newViewModel()
+        vm.load()
+        advanceUntilIdle()
+        vm.onQueryChange("ILS")
+        advanceUntilIdle()
+        assertTrue(vm.airports.isEmpty())
+        assertTrue(vm.chartHits.isNotEmpty())
+    }
+
     @Test
     fun queryPersistsAcrossReload() = runTest(dispatcher) {
         val vm = newViewModel()

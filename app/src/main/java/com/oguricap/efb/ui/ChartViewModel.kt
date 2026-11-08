@@ -152,7 +152,10 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             airports = airportList
-            chartHits = chartList
+            // 搜的是机场（四字码 / 中文机场名）就只给「机场大类」这一个入口，
+            // 不再把具体航图平铺出来：点进机场页按图型挑才是正确的路径。
+            // 只有查询词完全没命中机场时（如 ILS、RWY36L），图名匹配才有意义。
+            chartHits = if (airportList.isNotEmpty()) emptyList() else chartList
         }
     }
 

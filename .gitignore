@@ -38,3 +38,7 @@ keystore/
 
 # 临时
 _tmp/
+
+# X-Plane 导航数据：解压产物约 217 MB / 1.7 万个 .dat，只留本机，不入库
+# 压缩包 *.zip 已由上面的规则忽略
+navData/

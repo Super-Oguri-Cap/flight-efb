@@ -2,12 +2,17 @@ package com.oguricap.efb.ui.charts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -17,8 +22,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -109,10 +118,21 @@ fun AirportScreen(
                 navIcon = if (selecting) Icons.Filled.Clear else Icons.AutoMirrored.Filled.ArrowBack,
                 actions = {
                     if (selecting) {
-                        TextButton(onClick = { quitSelecting() }) { Text("完成") }
+                        TextButton(onClick = { quitSelecting() }) { Text("取消") }
                     } else {
-                        IconButton(onClick = { selecting = true }) {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = "选择航图")
+                        // 旧版是右上角一个没有文字的小图标，几乎没人看得出来能点。
+                        // 换成带图标 + 文字的按钮，列表里另有一张常驻引导卡说明用途。
+                        FilledTonalButton(
+                            onClick = { selecting = true },
+                            contentPadding = PaddingValues(horizontal = 12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("选择航图")
                         }
                     }
                 },
@@ -190,6 +210,16 @@ fun AirportScreen(
                 }
             }
 
+            // 选择本次飞行用图的常驻入口：不用去顶栏找按钮，进来就能看见。
+            // 选择模式下换成操作提示，告诉用户下一步该做什么。
+            if (selecting) {
+                item(key = "selecting-hint") { SelectingHint(selected.size) }
+            } else {
+                item(key = "select-charts-entry") {
+                    SelectChartsEntry(onClick = { selecting = true })
+                }
+            }
+
             grouped.forEach { (type, charts) ->
                 val expanded = type in vm.expandedTypes
                 item(key = "header-" + type) {
@@ -238,6 +268,65 @@ private fun MutableMap<String, Chart>.toggle(chart: Chart) {
     if (containsKey(chart.file)) remove(chart.file) else put(chart.file, chart)
 }
 
+// 醒目的常驻入口：说明这件事是干什么的 + 一个能直接点的大按钮
+@Composable
+private fun SelectChartsEntry(onClick: () -> Unit) {
+    val foreground = MaterialTheme.colorScheme.onPrimaryContainer
+    Card(
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = foreground,
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "本次飞行要用哪几张图？",
+                        fontWeight = FontWeight.Bold,
+                        color = foreground,
+                    )
+                    Text(
+                        text = "把离场图、进场图挑出来置顶，飞行中一键打开",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = foreground,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+                Text("选择离场 / 进场航图")
+            }
+        }
+    }
+}
+
+// 选择模式：明确告诉用户「先展开分组勾选，再点底部按钮」
+@Composable
+private fun SelectingHint(count: Int) {
+    Surface(color = MaterialTheme.colorScheme.primaryContainer) {
+        Text(
+            text = if (count > 0) {
+                "已勾选 " + count + " 张 · 点页面底部按钮放到离场或进场"
+            } else {
+                "展开下方图型分组（如离场图 / 进场图），勾选要用的航图"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+}
+
+// 底部操作：两个大按钮 + 直白文案，替代原来一排灰扑扑的「加入离场 / 加入进场」
 @Composable
 private fun SelectionBar(
     count: Int,
@@ -247,18 +336,36 @@ private fun SelectionBar(
 ) {
     val enabled = count > 0
     Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(
-                text = if (enabled) "已选 " + count + " 张" else "点选要加入的航图",
+                text = if (enabled) "已勾选 " + count + " 张 · 选择放到哪一组" else "先勾选要用的航图",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, top = 10.dp),
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onPinDeparture,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                ) { Text("设为离场航图") }
+                FilledTonalButton(
+                    onClick = onPinArrival,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                ) { Text("设为进场航图") }
+            }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onPinDeparture, enabled = enabled) { Text("加入离场") }
-                TextButton(onClick = onPinArrival, enabled = enabled) { Text("加入进场") }
+                TextButton(onClick = onRemove, enabled = enabled) { Text("从已选航图移出") }
                 Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = onRemove, enabled = enabled) { Text("移出分组") }
+                Text(
+                    text = "选好后会置顶在本页",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -279,7 +386,7 @@ private fun PinnedHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = kind.label + "（已选）",
+            text = kind.label + "航图（本次使用）",
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.weight(1f),

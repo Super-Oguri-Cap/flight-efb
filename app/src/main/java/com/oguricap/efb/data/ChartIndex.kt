@@ -54,15 +54,18 @@ class ChartIndex private constructor(
         }
     }
 
+    // 图名搜索只按标题匹配。
+    // 旧版还带 `OR icao = ?`：搜 ZGGG 会把该机场上百张图全灌进搜索结果，
+    // 而用户此刻要找的是「ZGGG 这个机场」，具体航图进机场页按图型挑即可。
     fun searchCharts(query: String, limit: Int = 80): List<Chart> {
         val q = query.trim()
         if (q.isEmpty()) return emptyList()
         val like = "%" + escape(q) + "%"
         return db.rawQuery(
             "SELECT id, icao, airport, chartType, title, file, rwys FROM charts " +
-                "WHERE title LIKE ? ESCAPE '\\' OR icao = ? " +
+                "WHERE title LIKE ? ESCAPE '\\' " +
                 "ORDER BY icao, chartType, title LIMIT ?",
-            arrayOf(like, q.uppercase(), limit.toString()),
+            arrayOf(like, limit.toString()),
         ).use { c -> readCharts(c) }
     }
 
