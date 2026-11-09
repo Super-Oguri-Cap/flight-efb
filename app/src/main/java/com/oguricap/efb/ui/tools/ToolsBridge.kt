@@ -7,8 +7,8 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.Log
 import android.webkit.JavascriptInterface
+import com.oguricap.efb.diag.AppLog
 import java.io.IOException
 
 /**
@@ -31,6 +31,7 @@ class ToolsBridge(
     onDataApplied: (String) -> Unit,
     onEvent: (String) -> Unit,
     onPickFiles: (String) -> Unit = {},
+    onPickFolder: (String) -> Unit = {},
     onPlansChanged: () -> Unit = {},
     onPackSerialized: (String) -> Unit = {},
 ) {
@@ -46,6 +47,7 @@ class ToolsBridge(
     private val applyData = onDataApplied
     private val emitEvent = onEvent
     private val onPickRequest = onPickFiles
+    private val onPickFolderRequest = onPickFolder
     private val notifyPlansChanged = onPlansChanged
     private val onPack = onPackSerialized
 
@@ -62,25 +64,37 @@ class ToolsBridge(
      */
     @JavascriptInterface
     fun pickFiles(kind: String) {
-        Log.i(TOOL_TAG, "网页请求选择文件 kind=$kind")
-        main.post { onPickRequest(kind) }
+        AppLog.i(TOOL_TAG, "网页请求选择文件 kind=$kind")
+        postToMain("pickFiles") { onPickRequest(kind) }
+    }
+
+    /**
+     * 网页里的「选择数据文件夹」。走 SAF 目录树而不是多选文件：
+     * 用户只要指到导航包解压后的那一层，App 自己去找 earth_fix / awy / nav / aptmeta。
+     */
+    @JavascriptInterface
+    fun pickFolder(kind: String) {
+        AppLog.i(TOOL_TAG, "网页请求选择文件夹 kind=$kind")
+        postToMain("pickFolder") { onPickFolderRequest(kind) }
     }
 
     // ---------------------------------------------------------------- 数据集缓存
 
     @JavascriptInterface
     fun packBegin(total: Int) {
-        main.post { packBuffer = StringBuilder(if (total in 1..64_000_000) total else 1 shl 16) }
+        postToMain("packBegin") {
+            packBuffer = StringBuilder(if (total in 1..64_000_000) total else 1 shl 16)
+        }
     }
 
     @JavascriptInterface
     fun packChunk(chunk: String) {
-        main.post { packBuffer?.append(chunk) }
+        postToMain("packChunk") { packBuffer?.append(chunk) }
     }
 
     @JavascriptInterface
     fun packDone() {
-        main.post {
+        postToMain("packDone") {
             val text = packBuffer?.toString()
             packBuffer = null
             if (!text.isNullOrBlank()) onPack(text)
@@ -93,20 +107,20 @@ class ToolsBridge(
      */
     @JavascriptInterface
     fun onPlansChanged() {
-        main.post { notifyPlansChanged() }
+        postToMain("onPlansChanged") { notifyPlansChanged() }
     }
 
     /** 网页 importCommit() 解析完成后的回执，payload 是 JSON 字符串，原样转交给 ViewModel。 */
     @JavascriptInterface
     fun onDataApplied(payload: String) {
-        main.post { applyData(payload) }
+        postToMain("onDataApplied") { applyData(payload) }
     }
 
     /** 网页请求把一份 JSON 存到「下载/EFB」。Android 10+ 走 MediaStore，不需要任何存储权限。 */
     @JavascriptInterface
     fun exportJson(filename: String, json: String) {
         val safe = sanitize(filename)
-        main.post { writeToDownloads(safe, json) }
+        postToMain("exportJson") { writeToDownloads(safe, json) }
     }
 
     /**
@@ -115,13 +129,45 @@ class ToolsBridge(
      */
     @JavascriptInterface
     fun saveRoute(json: String) {
-        Log.i(TOOL_TAG, "saveRoute $json")
-        main.post { emitEvent("保存请用底部按钮") }
+        // 只记长度：整条航路的点串能有几百个字符，逐字落进日志既没用又占体积
+        AppLog.i(TOOL_TAG, "saveRoute ${json.length} 字符")
+        postToMain("saveRoute") { emitEvent("保存请用底部按钮") }
     }
 
+    /**
+     * 网页自己的日志。按真实级别落盘：
+     * 页面里 `console.error` 走的是 error 级，原来一律记成 info，
+     * 出问题时在日志里根本区分不出「普通输出」和「真的报错」。
+     */
     @JavascriptInterface
     fun log(level: String, message: String) {
-        Log.i(JS_TAG, "$level $message")
+        when (level.lowercase()) {
+            "error", "err", "e" -> AppLog.e(JS_TAG, message)
+            "warn", "warning", "w" -> AppLog.w(JS_TAG, message)
+            "debug", "d" -> AppLog.d(JS_TAG, message)
+            else -> AppLog.i(JS_TAG, message)
+        }
+    }
+
+    /**
+     * 把网页来的回调投递到主线程，并兜住里面的异常。
+     *
+     * 不兜的后果：Runnable 里抛出的异常直接变成主线程未捕获异常 —— 整个应用闪退，
+     * 而触发它的可能只是网页传了一个意料之外的 payload（比如 pack 分块序号错乱、
+     * 回执 JSON 结构变了）。这里记一条日志、给用户一句提示，页面本身还能继续用。
+     *
+     * 提示文案不拼异常原文：飞行中用户看到 `JSONException: End of input at ...`
+     * 没有任何意义，细节留在日志里，导出后能查。
+     */
+    private fun postToMain(name: String, block: () -> Unit) {
+        main.post {
+            try {
+                block()
+            } catch (t: Throwable) {
+                AppLog.e(TOOL_TAG, "网页回调 $name 处理失败", t)
+                runCatching { emitEvent("页面回调出错，本次操作可能没生效") }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 写盘
@@ -156,10 +202,10 @@ class ToolsBridge(
             val done = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
             resolver.update(uri, done, null, null)
 
-            Log.i(TOOL_TAG, "已导出 $name（${json.length} 字符）")
+            AppLog.i(TOOL_TAG, "已导出 $name（${json.length} 字符）")
             emitEvent("已导出 $name")
         } catch (t: Throwable) {
-            Log.e(TOOL_TAG, "导出 $name 失败", t)
+            AppLog.e(TOOL_TAG, "导出 $name 失败", t)
             // 占位条目留着会变成 0 字节的幽灵文件，删掉
             runCatching { target?.let { resolver.delete(it, null, null) } }
             emitEvent("导出失败：" + (t.message ?: t.javaClass.simpleName))

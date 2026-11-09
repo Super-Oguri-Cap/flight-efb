@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -269,9 +270,13 @@ fun PdfReaderScreen(
     val pageCount = document?.pageCount ?: 0
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责；全屏时系统栏本身被隐藏，
+        // 外层留白也随之归零，所以这里保持 0 反而能在两种状态下都正确
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             // 全屏时整条顶栏不组合，页面直接顶到状态栏下面
             if (!fullscreen) TopAppBar(
+                windowInsets = WindowInsets(0),
                 title = {
                     Column {
                         Text(

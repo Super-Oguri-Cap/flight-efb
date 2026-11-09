@@ -217,7 +217,7 @@ class ToolAssetsContractTest {
         val routeVer = ToolContract.extractVersion(read(ToolContract.ROUTE_ASSET), route)
         assertTrue("航路页版本正则应当能提取到版本串，实际得到 `$routeVer`", routeVer.isNotBlank())
         assertTrue(
-            "航路页版本串形状应形如 8.4，实际 `$routeVer`",
+            "航路页版本串形状应形如 8.6，实际 `$routeVer`",
             Regex("^\\d+\\.\\d+").containsMatchIn(routeVer)
         )
 

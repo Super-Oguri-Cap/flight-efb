@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -85,8 +86,12 @@ fun SearchScreen(
     }
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责；这里再算一次就是双倍，
+        // 表现是标题离刘海远一整条状态栏、列表底边离底栏也高出一截
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0),
                 title = { Text("飞行EFB") },
                 actions = {
                     IconButton(onClick = onOpenSettings) {

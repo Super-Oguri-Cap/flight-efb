@@ -1,6 +1,5 @@
 package com.oguricap.efb.ui.tools
 
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -51,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.oguricap.efb.diag.AppLog
 import kotlinx.coroutines.launch
 
 /**
@@ -77,6 +77,9 @@ fun ToolsScreen(vm: ToolsViewModel = viewModel()) {
     // 网页里三个「点击选择文件」分别对应这三条，选完由 ViewModel 按 kind 分流。
     var pendingKind by remember { mutableStateOf("nav") }
 
+    // 选目录时点的是哪个入口：nav 会顺带把同目录的 AIP 表也装上，aip 就只认航路表
+    var pendingFolderKind by remember { mutableStateOf("nav") }
+
     // SAF 多选：只拿到只读 Uri，文件内容由 ViewModel 分块读出来送进网页
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -84,12 +87,20 @@ fun ToolsScreen(vm: ToolsViewModel = viewModel()) {
         if (uris.isNotEmpty()) vm.importFiles(pendingKind, uris)
     }
 
+    // 选目录：整包导航数据（earth_fix / awy / nav / aptmeta 或 zip）交给程序自己认。
+    // 这是推荐入口 —— 少选一个 earth_aptmeta.dat 就没有机场坐标，输入 ZBAA 会直接报「数据库里没有」。
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) vm.importFolder(uri, pendingFolderKind)
+    }
+
     // 底部按钮和网页里的「点击选择文件」共用这一个入口。
     // launch 失败时不能静默：用户只会看到「点了没反应」，根本无从判断。
     val pickFiles: () -> Unit = {
         runCatching { picker.launch(arrayOf("*/*")) }
             .onFailure { e ->
-                Log.e("EFB/TOOL", "打开文件选择器失败", e)
+                AppLog.e("EFB/TOOL", "打开文件选择器失败", e)
                 scope.launch {
                     snackbar.showSnackbar("打不开文件选择器：" + (e.message ?: e.javaClass.simpleName))
                 }
@@ -158,6 +169,20 @@ fun ToolsScreen(vm: ToolsViewModel = viewModel()) {
                     // 网页里三个「点击选择文件」都走同一个 SAF 选择器：
                     // WebView 没有 FileChooser 回调，不接管的话点它毫无反应
                     onPickFiles = { kind -> pendingKind = kind; pickFiles() },
+                    // 「选择数据文件夹」：目录树选择器，扫描与分角色都在 ViewModel 里做
+                    onPickFolder = { kind ->
+                        pendingFolderKind = kind
+                        AppLog.i("EFB/TOOL", "打开文件夹选择器 kind=$kind")
+                        runCatching { folderPicker.launch(null) }
+                            .onFailure { e ->
+                                AppLog.e("EFB/TOOL", "打开文件夹选择器失败", e)
+                                scope.launch {
+                                    snackbar.showSnackbar(
+                                        "打不开文件夹选择器：" + (e.message ?: e.javaClass.simpleName)
+                                    )
+                                }
+                            }
+                    },
                 )
 
                 // 资源坏了就别让用户对着半渲染的页面点按钮，直接盖住
@@ -297,7 +322,12 @@ private fun FuelActions(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (distNM != null) "当前航路 $distNM NM" else "当前航路未设定",
+                text = if (distNM != null) {
+                    val src = vm.currentDistSource()
+                    "当前航路 $distNM NM" + (src?.let { " · $it" } ?: "")
+                } else {
+                    "当前航路未设定"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (distNM != null) {
                     MaterialTheme.colorScheme.onSurface
@@ -307,8 +337,8 @@ private fun FuelActions(
                 modifier = Modifier.weight(1f),
             )
             TextButton(
-                onClick = { vm.fillFuelDistance() },
-                enabled = !blocked && vm.fuelReady && distNM != null,
+                onClick = { vm.refillFuelDistance() },
+                enabled = !blocked && vm.fuelReady,
             ) {
                 Text("重新填入")
             }

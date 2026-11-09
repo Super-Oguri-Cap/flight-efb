@@ -14,8 +14,10 @@ import com.oguricap.efb.data.IndexBuilder
 import com.oguricap.efb.data.PinKind
 import com.oguricap.efb.data.PinStore
 import com.oguricap.efb.data.SpecExporter
+import com.oguricap.efb.diag.AppLog
 import com.oguricap.efb.perf.Perf
 import com.oguricap.efb.prefs.Settings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +31,7 @@ import java.io.File
 // 测试注入调度器改走内部可变属性。
 class ChartViewModel(app: Application) : AndroidViewModel(app) {
 
+    private val tag = "EFB/CHART"
     private val settings = Settings(app)
 
     // 选中航图的落盘位置：离场区 / 进场区
@@ -146,23 +149,45 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             val idx = index ?: return@launch
-            val (airportList, chartList) = withContext(io) {
-                Perf.timed("search_query") {
-                    idx.searchAirports(text) to idx.searchCharts(text)
+            // runCatching 只包住真正的查询：如果包住整个协程体，
+            // 上面 cancel() 抛出的 CancellationException 会被当成查询失败写进 loadError
+            val result = runCatching {
+                withContext(io) {
+                    Perf.timed("search_query") {
+                        idx.searchAirports(text) to idx.searchCharts(text)
+                    }
                 }
             }
-            airports = airportList
-            // 搜的是机场（四字码 / 中文机场名）就只给「机场大类」这一个入口，
-            // 不再把具体航图平铺出来：点进机场页按图型挑才是正确的路径。
-            // 只有查询词完全没命中机场时（如 ILS、RWY36L），图名匹配才有意义。
-            chartHits = if (airportList.isNotEmpty()) emptyList() else chartList
+            val error = result.exceptionOrNull()
+            if (error is CancellationException) return@launch
+            result.onSuccess { (airportList, chartList) ->
+                airports = airportList
+                // 搜的是机场（四字码 / 中文机场名）就只给「机场大类」这一个入口，
+                // 不再把具体航图平铺出来：点进机场页按图型挑才是正确的路径。
+                // 只有查询词完全没命中机场时（如 ILS、RWY36L），图名匹配才有意义。
+                chartHits = if (airportList.isNotEmpty()) emptyList() else chartList
+            }.onFailure {
+                // 索引文件被换掉/删掉后查询会抛 IllegalStateException。
+                // 不接住的话这就是一次主线程未捕获异常 —— 输一个字就闪退。
+                AppLog.e(tag, "搜索失败：$text", it)
+                loadError = "索引读取失败：" + (it.message ?: it.javaClass.simpleName)
+            }
         }
     }
 
     fun refreshAirports() {
         viewModelScope.launch {
             val idx = index ?: return@launch
-            airports = withContext(io) { Perf.timed("query_airports") { idx.airports() } }
+            val result = runCatching {
+                withContext(io) { Perf.timed("query_airports") { idx.airports() } }
+            }
+            val error = result.exceptionOrNull()
+            if (error is CancellationException) return@launch
+            result.onSuccess { airports = it }
+                .onFailure {
+                    AppLog.e(tag, "读取机场列表失败", it)
+                    loadError = "索引读取失败：" + (it.message ?: it.javaClass.simpleName)
+                }
         }
     }
 
@@ -200,11 +225,20 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
         expandedTypes = emptySet()
         viewModelScope.launch {
             val idx = index ?: return@launch
-            val (airport, charts) = withContext(io) {
-                idx.airport(icao) to Perf.timed("query_icao") { idx.charts(icao) }
+            val result = runCatching {
+                withContext(io) {
+                    idx.airport(icao) to Perf.timed("query_icao") { idx.charts(icao) }
+                }
             }
-            currentAirport = airport
-            currentCharts = charts
+            val error = result.exceptionOrNull()
+            if (error is CancellationException) return@launch
+            result.onSuccess { (airport, charts) ->
+                currentAirport = airport
+                currentCharts = charts
+            }.onFailure {
+                AppLog.e(tag, "打开机场失败：$icao", it)
+                loadError = "读取 $icao 的航图失败：" + (it.message ?: it.javaClass.simpleName)
+            }
         }
     }
 

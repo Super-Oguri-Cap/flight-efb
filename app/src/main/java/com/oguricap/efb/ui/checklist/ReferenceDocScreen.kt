@@ -1,6 +1,7 @@
 package com.oguricap.efb.ui.checklist
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -56,8 +57,11 @@ fun ReferenceDocScreen(
     val failure = error
     if (failure != null) {
         Scaffold(
+            // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责
+            contentWindowInsets = WindowInsets(0),
             topBar = {
                 TopAppBar(
+                    windowInsets = WindowInsets(0),
                     title = {
                         Column {
                             Text(doc.title, fontWeight = FontWeight.Bold)

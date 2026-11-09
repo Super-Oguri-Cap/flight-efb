@@ -71,8 +71,13 @@
     for (var i = 0; i < segs.length; i++) {
       if (segs[i] && segs[i].awy) awy[segs[i].awy] = 1;
     }
+    /* v8.6：直升机场 / 水上基地被排除在 airportByIcao 之外（选了会提示不支持），
+       这里报「可选机场数」，和页面顶部计数保持一致；total 另给一个，方便排查。 */
+    var usable = ds.airportByIcao ? ds.airportByIcao.size : (ds.airports || []).length;
     return {
-      airports: (ds.airports || []).length,
+      airports: usable,
+      airportsTotal: (ds.airports || []).length,
+      special: ds.specialByIcao ? ds.specialByIcao.size : 0,
       nodes: (ds.nodes || []).length,
       segments: segs.length,
       airways: Object.keys(awy).length
@@ -269,28 +274,62 @@
     return ok;
   }
 
-  /* ---------------- 顶部工具栏适配 ----------------
-   * 原页面 #toolbar 是固定 50px、不换行的单行布局，900px 断点只处理了 #main，
-   * 没管工具栏。手机上它会被挤成两行（实测 brand 高达 71px）后被 50px 的
-   * 高度裁掉，同时 nowrap 的 #dataTag 把整行撑宽 —— 就是「字显示不全、页面溢出」。
-   * 这里补一段窄屏规则：标题独占一行、副标题隐藏、标签可省略、按钮不压缩。 */
-  var TOOLBAR_CSS = [
-    '@media (max-width:900px){',
-    '#toolbar{height:auto;min-height:50px;flex-wrap:wrap;row-gap:8px;padding:8px 12px}',
-    '#toolbar .brand{flex:1 1 100%;margin-right:0;min-width:0;flex-wrap:wrap;row-gap:2px}',
-    '#toolbar .brand small{display:none}',
-    '#dataTag{order:2;flex:1 1 64px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '#toolbar button{order:3;flex:0 0 auto;height:34px;padding:0 12px;font-size:12px}',
-    '#toolbar #btnGen{flex:1 1 auto}',
-    '}'
-  ].join('');
+  /* ---------------- 「选择数据文件夹」入口 ----------------
+   * 用户不用再记「earth_fix / earth_awy / earth_aptmeta 各在哪」：
+   * 指到导航包解压后的那一层，App 扫描目录、按文件名分角色、自动挑齐。
+   * 纯附加按钮：App 没实现 pickFolder 时退回原来的多选文件。 */
+  function addFolderButton(paneId, kind, text) {
+    var id = 'efbFolder_' + kind;
+    if (document.getElementById(id)) return true;
+    var pane = document.getElementById(paneId);
+    if (!pane) return false;
+    var drop = pane.querySelector('.drop');
+    if (!drop) return false;
+    var b = document.createElement('button');
+    b.id = id;
+    b.type = 'button';
+    b.className = 'primary';
+    b.style.cssText = 'width:100%;margin-top:8px';
+    b.textContent = text;
+    b.addEventListener('click', function () {
+      if (window.Android && window.Android.pickFolder) { window.Android.pickFolder(kind); return; }
+      var el = document.getElementById(kind === 'aip' ? 'fileAip' : 'fileNav');
+      if (el) el.click();
+    });
+    drop.parentNode.insertBefore(b, drop.nextSibling);
+    return true;
+  }
 
-  function injectToolbarFix() {
-    if (document.getElementById('efb-toolbar-fix')) return;
-    var st = document.createElement('style');
-    st.id = 'efb-toolbar-fix';
-    st.textContent = TOOLBAR_CSS;
-    (document.head || document.documentElement).appendChild(st);
+  function injectFolderButtons() {
+    addFolderButton('pane-nav', 'nav', '📁 选择数据文件夹（自动找 earth_fix / awy / nav / aptmeta）');
+    addFolderButton('pane-aip', 'aip', '📁 选择 AIP 文件夹（自动找 CSV / zip）');
+  }
+
+  /* ---------------- 顶部工具栏适配 ----------------
+   * v8.6 起页面自己带了 @media(max-width:640px) 的窄屏规则：顶栏换行、品牌独占一行、
+   * 数据标签省略、按钮压缩。1.3.6 打的那段 900px 补丁已经没用了 ——
+   * 留着反而会覆盖页面新写的 order/font-size，把版本号藏起来、把标签挤到按钮前面。
+   * 所以这里不再注入任何 CSS，等页面自己的媒体查询生效。 */
+
+  /* ---------------- 主题：App 固定深色，页面默认跟随系统 ----------------
+   * v8.6 新增白天模式，storedTheme() 先读 localStorage（本 WebView 关了 DOM Storage，
+   * 读不到），再退回 prefers-color-scheme。手机是浅色模式时，工具页会白底打开，
+   * 和整个 App 的深色外壳撞在一起。
+   * 这里在首屏后把页面切回深色 —— 走页面自己的 #btnTheme，变量 / 图标 / title 一起变，
+   * 不写死任何颜色；用户当次仍可点 ☀️ 换白天，不拦。 */
+  var themeTries = 0;
+
+  function forceDarkTheme() {
+    var el = document.documentElement;
+    if (!el) return;
+    if (el.getAttribute('data-theme') !== 'light') return;   // 已经是深色，什么都不做
+    var b = document.getElementById('btnTheme');
+    if (!b) return;
+    themeTries++;
+    b.click();                                               // 页面自己的 toggleTheme
+    if (el.getAttribute('data-theme') === 'light' && themeTries < 6) {
+      setTimeout(forceDarkTheme, 250);                       // 监听还没挂上，稍后再试
+    }
   }
 
   /* ---------------- 方案变化回调 ----------------
@@ -359,19 +398,47 @@
    *
    * @param persist 成功后是否把数据集回传给 App 落盘缓存。
    *   真正的导入传 true；从缓存恢复传 false —— 没必要把刚读出来的东西再写一遍。
+   * @param keepSelection 应用后是否把起降机场填回去。
+   *   页面的 UI.applyData 会 resetSelection()（清空输入、置灰「生成航路」），
+   *   这对「换导航数据」是合理的，但 AIP 航路表只是给同一份数据加一层官方航路，
+   *   用户刚选好的机场被清掉，看起来就像「导完 AIP 不能算了」。所以 AIP 走这条要保留。
    */
-  function finishApply(rec, okMessage, persist) {
+  function finishApply(rec, okMessage, persist, keepSelection) {
+    var before = keepSelection ? readAirportInputs() : null;
     return UI.applyData(rec, {}).then(function (ok) {
       if (ok) {
         lastPack = rec.pack;
         ctxCaac = rec.caac;
         ctxPriority = rec.priority;
+        if (before) restoreAirportInputs(before);
         if (persist !== false) exportPackChunks();
       }
       notifyApplied(!!ok, ok ? (okMessage || '') : '数据不可用');
     }).catch(function (e) {
       notifyApplied(false, '应用失败：' + (e && e.message ? e.message : e));
     });
+  }
+
+  /* ---------------- 起降机场输入框的存取 ----------------
+   * 页面没有对外暴露 sel，只能操作 DOM：填值 + 派发 input，
+   * 让页面自己的 validate() 重新按新数据集校验并点亮「生成航路」。 */
+  function readAirportInputs() {
+    var f = document.getElementById('fromInput');
+    var t = document.getElementById('toInput');
+    return { from: f ? String(f.value || '') : '', to: t ? String(t.value || '') : '' };
+  }
+
+  function restoreAirportInputs(v) {
+    if (!v) return;
+    var pairs = [['fromInput', v.from], ['toInput', v.to]];
+    for (var i = 0; i < pairs.length; i++) {
+      var el = document.getElementById(pairs[i][0]);
+      if (!el || !pairs[i][1]) continue;
+      el.value = pairs[i][1];
+      try {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (e) { /* 老 WebView 不支持构造 Event 时忽略 */ }
+    }
   }
 
   /* ---------------- 数据集回传给 App 缓存 ----------------
@@ -402,7 +469,7 @@
     return true;
   }
 
-  /* ① 导航数据：earth_fix / earth_awy / earth_nav / earth_aptmeta */
+  /* ① 导航数据：earth_fix / earth_awy / earth_nav / apt.dat / earth_aptmeta */
   function applyNav(files) {
     console.info('[EFB] 解析导航数据 ' + files.length + ' 个文件');
     var parsed = NavParser.parse(files);
@@ -431,7 +498,16 @@
       domestic: { corridors: [] },
       priority: ctxPriority || {}
     };
-    finishApply(rec, (parsed.warnings || []).join('；'));
+
+    var warn = (parsed.warnings || []).slice();
+    if (!airportsTxt) {
+      /* 没有机场坐标 = 起降机场输不进去 = 整页算不了。必须说清楚缺哪个文件。 */
+      warn.unshift('没有机场坐标：请补 earth_aptmeta.dat 或 apt.dat，' +
+        '否则输入 ZBAA 会提示「数据库里没有」，无法生成航路');
+    }
+    /* v8.6 起页面自己解析/合并 aptmeta 与 apt.dat，还会在两者都缺时从进离场点推算机场，
+       所以不再过滤含 "apt.dat" 的告警 —— 那些现在是有效信息，不是误报。 */
+    finishApply(rec, warn.join('；'));
   }
 
   /* ② AIP 航路表（CAAC 四张表的 CSV，或 caac_official.json）
@@ -448,15 +524,40 @@
       notifyApplied(false, '还没有导航数据，请先在「① 导航数据」里导入 earth_fix / earth_awy');
       return;
     }
-    console.info('[EFB] 解析 AIP 航路表 ' + files.length + ' 个文件');
-    var parsed = AipParser.parse(files);
+
+    /* CAAC 的压缩包里同时放着同名的 PDF 报表。PDF 进 CSV 解析只会得到
+       「表头里没有 Fly along 列」这种看不懂的告警，直接在这里挑掉；
+       zip 由 App 端解压后按条目送进来，走到这里已经不是 zip 了。 */
+    var usable = [];
+    var skipped = [];
+    for (var i = 0; i < files.length; i++) {
+      var n = String(files[i].name || '');
+      if (/\.(pdf|zip)$/i.test(n)) { skipped.push(n); continue; }
+      usable.push(files[i]);
+    }
+    if (!usable.length) {
+      notifyApplied(false, 'AIP 入口只认 .csv / .json。PDF 请放进航图库；' +
+        'zip 请用「选择数据文件夹」，或解压后选那四张 CSV。');
+      return;
+    }
+
+    console.info('[EFB] 解析 AIP 航路表 ' + usable.length + ' 个文件' +
+      (skipped.length ? '（跳过 ' + skipped.length + ' 个 PDF/压缩包）' : ''));
+    var parsed = AipParser.parse(usable);
+
+    if (!parsed.stats.routes) {
+      notifyApplied(false, '没解析出任何航路：' +
+        ((parsed.warnings || []).join('；') || '检查表头里是否有 "Fly along" 列'));
+      return;
+    }
+
     var pack = lastPack || PackCodec.encode({
       nodes: ds.nodes, segments: ds.segments, airports: ds.airports
     });
 
     var rec = {
       source: 'aip',
-      label: 'AIP 航路表 · ' + files.length + ' 个文件',
+      label: 'AIP 航路表 · ' + usable.length + ' 个文件',
       createdAt: Date.now(),
       pack: pack,
       caac: parsed.official,
@@ -467,7 +568,8 @@
     var stat = parsed.stats
       ? ('航路 ' + parsed.stats.routes + ' 条 / 机场 ' + parsed.stats.airports + ' 个')
       : '';
-    finishApply(rec, stat + (warn ? '（' + warn + '）' : ''));
+    /* 第四个参数 = 保留起降机场：AIP 只是加一层官方航路，没有换数据集 */
+    finishApply(rec, stat + (warn ? '（' + warn + '）' : ''), true, true);
   }
 
   /* ③ 数据包（本工具导出的 routegen-pack.json） */
@@ -509,19 +611,19 @@
   api.importCommit = importCommit;
   api.closeDataPanel = closeDataPanel;
 
-  // 工具栏适配是纯 CSS，head 一存在就能插，不必等 DOM
-  injectToolbarFix();
-
   // 必须等 DOM 就绪：面板里的三个 file input 在 bindDataPanel() 前后才有意义
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
-      injectToolbarFix();
+      injectFolderButtons();
       hookFileInputs();
       watchPlans();
+      forceDarkTheme();
     });
   } else {
+    injectFolderButtons();
     hookFileInputs();
     watchPlans();
+    forceDarkTheme();
   }
 
   window.__EFB__ = api;

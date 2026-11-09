@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.oguricap.efb.diag.AppLog
 import com.oguricap.efb.ui.ChartViewModel
 import com.oguricap.efb.ui.EfbApp
 import com.oguricap.efb.ui.onboarding.OnboardingScreen
@@ -110,6 +111,9 @@ class MainActivity : ComponentActivity() {
 
     // 部分定制系统没有实现应用级的「所有文件访问权限」页面，
     // 依次回退到全局页面与应用详情页，避免直接抛 ActivityNotFoundException。
+    //
+    // 三个都打不开时**不能抛**：这个方法是按钮回调，抛出去就是一次闪退，
+    // 而真正的原因只是「这台设备没有那个设置页」。记日志 + 在引导页给一句提示即可。
     private fun requestStorageAccess() {
         val packageUri = Uri.parse("package:" + packageName)
         val candidates = listOf(
@@ -117,10 +121,17 @@ class MainActivity : ComponentActivity() {
             Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri),
         )
+        var lastError: Throwable? = null
         for (intent in candidates) {
-            val opened = runCatching { startActivity(intent) }.isSuccess
-            if (opened) return
+            val result = runCatching { startActivity(intent) }
+            if (result.isSuccess) return
+            lastError = result.exceptionOrNull()
         }
-        throw IllegalStateException("这台设备上找不到可以打开文件权限设置的页面")
+        AppLog.e(LOG_TAG, "找不到可以打开文件权限设置的页面", lastError)
+        pickFailure = "这台设备上找不到文件权限设置页，请到「设置 → 应用 → 飞行EFB」手动授权。"
+    }
+
+    private companion object {
+        const val LOG_TAG = "EFB/MAIN"
     }
 }

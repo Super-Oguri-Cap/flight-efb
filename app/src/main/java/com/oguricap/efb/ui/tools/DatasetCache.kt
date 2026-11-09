@@ -1,6 +1,7 @@
 package com.oguricap.efb.ui.tools
 
 import android.content.Context
+import com.oguricap.efb.diag.AppLog
 import java.io.File
 
 /**
@@ -26,24 +27,33 @@ class DatasetCache(context: Context) {
     fun sizeBytes(): Long = if (file.isFile) file.length() else 0L
 
     /** 读回缓存的 pack JSON；不存在或读失败返回 null，调用方回落成「按 Uri 重新导入」。 */
-    fun read(): String? = runCatching {
+    fun read(): String? {
         if (!exists()) return null
-        file.readText(Charsets.UTF_8)
-    }.getOrNull()
-
-    /** 整份覆盖写入。先写临时文件再 rename，避免写到一半被杀留下半个 JSON。 */
-    fun write(text: String) {
-        runCatching {
-            val tmp = File(file.parentFile, "$FILE_NAME.tmp")
-            tmp.writeText(text, Charsets.UTF_8)
-            if (file.exists()) file.delete()
-            if (!tmp.renameTo(file)) {
-                // rename 失败（跨分区/占用）就退回直接写
-                file.writeText(text, Charsets.UTF_8)
-                tmp.delete()
-            }
-        }
+        return runCatching { file.readText(Charsets.UTF_8) }
+            .onFailure { AppLog.w(TAG, "数据集缓存读取失败：${file.length()} 字节", it) }
+            .getOrNull()
     }
+
+    /**
+     * 整份覆盖写入。先写临时文件再 rename，避免写到一半被杀留下半个 JSON。
+     *
+     * @return 是否落盘成功。失败不抛：缓存是「省一次重新解析」的优化，
+     *   写不进去不该打断导入流程，但调用方要能把「下次还得重解析」告诉用户。
+     */
+    fun write(text: String): Boolean = runCatching {
+        val tmp = File(file.parentFile, "$FILE_NAME.tmp")
+        tmp.writeText(text, Charsets.UTF_8)
+        if (file.exists()) file.delete()
+        if (!tmp.renameTo(file)) {
+            // rename 失败（跨分区/占用）就退回直接写
+            file.writeText(text, Charsets.UTF_8)
+            tmp.delete()
+        }
+        true
+    }.onFailure {
+        AppLog.e(TAG, "数据集缓存写入失败", it)
+        runCatching { File(file.parentFile, "$FILE_NAME.tmp").delete() }
+    }.getOrDefault(false)
 
     fun clear() {
         runCatching { file.delete() }
@@ -51,6 +61,7 @@ class DatasetCache(context: Context) {
     }
 
     companion object {
+        private const val TAG = "EFB/CACHE"
         private const val FILE_NAME = "efb_dataset_cache.json"
     }
 }

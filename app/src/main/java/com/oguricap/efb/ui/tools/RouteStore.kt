@@ -2,6 +2,7 @@ package com.oguricap.efb.ui.tools
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.oguricap.efb.diag.AppLog
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
@@ -125,7 +126,9 @@ class RouteStore(context: Context) {
     private fun readArray(): JSONArray {
         val raw = prefs.getString(KEY_ROUTES, null)
         if (raw.isNullOrBlank()) return JSONArray()
-        return runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        return runCatching { JSONArray(raw) }
+            .onFailure { AppLog.w(TAG, "航路库 JSON 解析失败，按空处理（${raw.length} 字符）", it) }
+            .getOrElse { JSONArray() }
     }
 
     private fun writeArray(arr: JSONArray) {
@@ -164,9 +167,10 @@ class RouteStore(context: Context) {
             kind = o.optString("kind", "engine"),
             savedAt = o.optLong("savedAt", 0L),
         )
-    }.getOrNull()
+    }.onFailure { AppLog.w(TAG, "单条航路数据损坏，已跳过", it) }.getOrNull()
 
     companion object {
+        private const val TAG = "EFB/ROUTES"
         private const val PREF = "efb_tool_routes"
         private const val KEY_ROUTES = "routes"
         private const val KEY_ACTIVE = "active"
