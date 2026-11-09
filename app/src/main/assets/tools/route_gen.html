@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>航路生成器 v8.6</title>
+<title>航路生成器 v8.7</title>
 <style>
 :root{
   --bg:#0f141a; --panel:#1a212b; --panel2:#141a22; --line:#2a3441;
@@ -511,7 +511,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
 <body>
 
 <div id="toolbar">
-  <div class="brand"><span class="dot"></span>航路生成器<small>v8.6</small></div>
+  <div class="brand"><span class="dot"></span>航路生成器<small>v8.7</small></div>
   <span id="dataTag" title="当前数据源">数据加载中…</span>
   <button id="btnTheme" title="切换白天 / 黑夜">☀️</button>
   <button id="btnData" title="导入 / 管理导航数据">数据管理</button>
@@ -597,7 +597,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
   <div class="mbox">
     <div class="mhead">
       <span class="t">数据管理</span>
-      <span class="hint2" style="margin-left:6px">v8.6 · 不带任何第三方导航数据，数据由你导入</span>
+      <span class="hint2" style="margin-left:6px">v8.7 · 不带任何第三方导航数据，数据由你导入</span>
       <button class="x" id="dclose" title="关闭 (Esc)">✕</button>
     </div>
 
@@ -2976,6 +2976,16 @@ const NavParser = (function () {
     return { n, skipped };
   }
 
+  /** cycle.json 里的厂商缩写 → 显示名 */
+  function providerLabel(p) {
+    const t = String(p || '').toUpperCase();
+    if (!t) return '';
+    if (t.indexOf('NAVIGRAPH') >= 0 || t === 'NG') return 'Navigraph';
+    if (t.indexOf('AEROSOFT') >= 0) return 'Aerosoft';
+    if (t.indexOf('JEPPESEN') >= 0) return 'Jeppesen';
+    return String(p);
+  }
+
   /* ---------------- 主流程 ---------------- */
   function parse(files) {
     const t0 = Date.now();
@@ -3173,14 +3183,18 @@ const NavParser = (function () {
       airways: airways.size
     };
 
-    let cycle = '';
+    let cycle = '', provider = '';
     if (cycleText) {
-      try { const j = JSON.parse(cycleText); cycle = String(j.cycle || '').trim(); } catch (e) { /* ignore */ }
+      try {
+        const j = JSON.parse(cycleText);
+        cycle = String(j.cycle || '').trim();
+        provider = providerLabel(j.manufacturerShort || j.manufacturerLong || j.provider || '');
+      } catch (e) { /* ignore */ }
     }
     if (airportSource) console.log('[机场] 来源：' + airportSource + ' · ' + airports.length + ' 个');
 
     return {
-      pack, stats, info, warnings, cycle, airportSource,
+      pack, stats, info, warnings, cycle, provider, airportSource,
       detail: { fix: fixStat, nav: navStat, awy: awyStat, apt: aptStat },
       ms: Date.now() - t0
     };
@@ -3343,6 +3357,16 @@ const AipParser = (function () {
     const routes = [];
     const info = [];
     const warnings = [];
+    let aipCycle = '';
+
+    /** 从文件名 / 表头标题里认 AIRAC 周期，例如 “... Nr2611.csv” */
+    const detectCycle = (name, text) => {
+      const head = (String(name) + ' ' + String(text).slice(0, 400));
+      const m = head.match(/(?:Nr|AIRAC|cycle|CY)\s*[:#-]?\s*(\d{4})/i);
+      if (m) return m[1];
+      const m2 = head.match(/\b(2\d{3})\b/);
+      return m2 ? m2[1] : '';
+    };
     for (const f of files) {
       let got = [];
       try {
@@ -3353,6 +3377,7 @@ const AipParser = (function () {
         continue;
       }
       info.push({ name: f.name, ok: true, count: got.length, kind: kindOf(f.name) });
+      if (!aipCycle) aipCycle = detectCycle(f.name, f.text);
       routes.push(...got);
     }
 
@@ -3374,6 +3399,7 @@ const AipParser = (function () {
       official: { routes: uniq, index: buildIndex(uniq) },
       priority: buildPriority(uniq),
       info, warnings, byKind,
+      cycle: aipCycle,
       stats: { routes: uniq.length, airports: Object.keys(buildIndex(uniq)).length }
     };
   }
@@ -3476,6 +3502,9 @@ const UI = (function () {
     return {
       source: 'builtin',
       label: '内置数据',
+      cycle: '2611',
+      provider: '',
+      aipCycle: '2611',          // 内置的 CAAC 表是 AIRAC 2611
       createdAt: Date.now(),
       pack: {
         NODES_GLOBAL: blockText('DATA_NODES_GLOBAL'),
@@ -3561,6 +3590,7 @@ const UI = (function () {
       console.log(`[DATA] 机场 ${ds.airports.length} / 节点 ${ds.nodes.length} / 航段 ${ds.segments.length} / 航路 ${airways.size}`);
       console.log(`[CAAC] 官方航路 ${nOfficial.routes} 条 / 国内走廊 ${nOfficial.corridors} 条已载入`);
 
+      rec.label = navLabelOf(rec);        // 旧记录里的「· 5 个文件」在这里洗掉
       current = rec;
       updateDataTag(rec, ds, nOfficial);
 
@@ -3588,24 +3618,48 @@ const UI = (function () {
     box.style.display = 'block';
   }
 
+  /** v8.7：把旧版本存下来的「X-Plane AIRAC 2611 · 5 个文件」这类标签洗掉文件数 */
+  function navLabelOf(rec) {
+    const raw = String((rec && rec.label) || '').trim();
+    const cleaned = raw
+      .replace(/\s*·\s*\d+\s*个文件/g, '')
+      .replace(/\s*·\s*已导入\s*$/g, '')
+      .trim();
+    if (cleaned) return cleaned;
+    const bits = [(rec && rec.provider) || '', (rec && rec.cycle) || ''].filter(Boolean);
+    return bits.length ? bits.join(' ') : '导航数据';
+  }
+
   function updateDataTag(rec, ds, nOfficial) {
     const tag = $('dataTag');
     const line = $('dataSrc');
     if (!tag) return;
+
+    const navLabel = navLabelOf(rec);
+    const aip = rec.aipCycle ? `AIP ${rec.aipCycle}` : 'AIP 未导入';
+    const when = rec.createdAt ? new Date(rec.createdAt).toLocaleString('zh-CN', { hour12: false }) : '';
+
+    // 「已导入」是导航数据的状态：
+    //   只有导航数据 → 紧跟在导航数据后面；导航 + AIP 都有 → 放到最后，表示两样都导了
+    let badge;
     if (rec.source === 'builtin') {
-      tag.textContent = '内置数据';
-      tag.className = '';
-      tag.title = '页面里打包好的导航数据';
-      if (line) line.textContent = `内置数据 · 官方航路 ${nOfficial.routes} 条 · 走廊 ${nOfficial.corridors} 条`;
+      badge = `${navLabel} · ${aip}`;
+    } else if (rec.aipCycle) {
+      badge = `${navLabel} · AIP ${rec.aipCycle} · 已导入`;
     } else {
-      const label = String(rec.label || '用户数据');
-      tag.textContent = (label.length > 22 ? label.slice(0, 21) + '…' : label) + ' · 已导入';
-      tag.className = 'user';
-      const when = rec.createdAt ? new Date(rec.createdAt).toLocaleString('zh-CN', { hour12: false }) : '';
-      tag.title = label + (when ? '\n导入时间 ' + when : '');
-      if (line) {
-        line.textContent = `${label}${when ? ' · ' + when : ''} · 官方航路 ${nOfficial.routes} 条`;
-      }
+      badge = `${navLabel} · 已导入 · AIP 未导入`;
+    }
+    tag.textContent = badge;
+    tag.className = rec.source === 'builtin' ? '' : 'user';
+    tag.title = `导航数据：${navLabel}` +
+      `\nAIP：${rec.aipCycle ? rec.aipCycle + ' 期' : '未导入'}` +
+      `\n官方航路 ${nOfficial.routes} 条 · 国内走廊 ${nOfficial.corridors} 条` +
+      (when ? `\n导入时间 ${when}` : '');
+
+    if (line) {
+      line.textContent = `${navLabel} · ${aip}` +
+        (when ? ` · ${when}` : '') +
+        ` · 官方航路 ${nOfficial.routes} 条`;
     }
   }
 
@@ -3643,7 +3697,7 @@ const UI = (function () {
     $('out').innerHTML = `<div class="emptycard">
       <div class="ic">✈</div>
       <h2>先导入导航数据</h2>
-      <p>v8.6 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
+      <p>v8.7 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
       <div class="steps">
         <div>1. 打开 X-Plane 12 的 <b>Custom Data</b> 文件夹，找 <b>earth_fix.dat</b> + <b>earth_awy.dat</b>（必需）</div>
         <div>2. 再找 <b>apt.dat</b>：在 <b>Global Scenery\\Global Airports\\Earth nav data</b> 下</div>
@@ -3845,7 +3899,8 @@ const UI = (function () {
       try {
         navParsed = NavParser.parse(navFiles);
         const cycle = navParsed.cycle || detectCycle(navFiles);
-        navParsed.label = (cycle ? `X-Plane AIRAC ${cycle}` : 'X-Plane 导航数据') + ` · ${navFiles.length} 个文件`;
+        const prov = navParsed.provider || '';
+        navParsed.label = [prov || '导航数据', cycle].filter(Boolean).join(' ');
         // 按解析结果重新着色：解析出 0 条的文件标红
         $('navList').innerHTML = fileListHtml(navFiles, NavParser.classify, navParsed.info);
         const zeroSeg = !navParsed.stats.segments;
@@ -3856,7 +3911,7 @@ const UI = (function () {
           (zeroApt && !zeroSeg ? `<div class="warnbox">没有机场数据：apt.dat 没选中或格式不认，` +
             '选机场时会是空的。</div>' : '') +
           warnHtml(navParsed.warnings) +
-          `<div class="hint2">解析用时 ${navParsed.ms} ms · 航段记录 ${navParsed.detail.awy.n} 条` +
+          `<div class="hint2">导航数据：<b>${esc(navParsed.label)}</b> · 解析用时 ${navParsed.ms} ms · 航段记录 ${navParsed.detail.awy.n} 条` +
           `（含方向限制 ${navParsed.detail.awy.withDir} 条）` +
           ` · 机场来源：${esc(navParsed.airportSource || '无')}</div>`;
         $('btnApplyNav').disabled = !(navParsed.stats.nodes && navParsed.stats.segments);
@@ -3872,10 +3927,13 @@ const UI = (function () {
       const rec = {
         source: 'xplane',
         label: navParsed.label,
+        cycle: navParsed.cycle || '',
+        provider: navParsed.provider || '',
         createdAt: Date.now(),
         pack: navParsed.pack,
         caac: current && current.caac ? current.caac : null,
         priority: current ? current.priority : null,
+        aipCycle: current ? (current.aipCycle || '') : '',
         domestic: null
       };
       const ok = await applyData(rec, {});
@@ -3946,6 +4004,7 @@ const UI = (function () {
         pack: current.pack,
         caac: aipParsed.official,
         priority: aipParsed.priority,
+        aipCycle: aipParsed.cycle || '2611',
         domestic: null
       };
       const ok = await applyData(rec, {});
@@ -4081,6 +4140,7 @@ const UI = (function () {
         const nCaac = current.caac && current.caac.routes ? current.caac.routes.length : 0;
         const nCor = current.domestic && current.domestic.corridors ? current.domestic.corridors.length : 0;
         meta.innerHTML = `来源：<b>${esc(current.label || current.source)}</b><br>` +
+          `AIP：${current.aipCycle ? current.aipCycle + ' 期' : '未导入'}<br>` +
           `时间：${esc(when)}<br>` +
           `官方航路：${nCaac.toLocaleString()} 条 · 国内走廊：${nCor.toLocaleString()} 条<br>` +
           `存储：${DataStore.mode === 'idb' ? 'IndexedDB（本机浏览器）'
