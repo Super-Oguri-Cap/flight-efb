@@ -32,6 +32,12 @@ keystore/
 *.zip
 *.tar.gz
 
+# 多版本 APK 的本地归档目录（内部 *.apk 已被忽略，这里把整个目录挡住，
+# 免得 git status 里一直挂着一个空的未跟踪目录）
+APKs/
+
+# 根目录只留 README / NOTICE / LICENSE，其余文档在 docs/（docs/ 要入库，别忽略）
+
 # 编辑器
 .vscode/
 *.swp
