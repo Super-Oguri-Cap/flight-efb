@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.oguricap.efb.data.Airport
+import com.oguricap.efb.data.Chart
 import com.oguricap.efb.data.ChartType
 import com.oguricap.efb.ui.ChartViewModel
 
@@ -54,7 +57,7 @@ fun SearchScreen(
     storageGranted: Boolean,
     onRequestStorage: () -> Unit,
     onOpenAirport: (String) -> Unit,
-    onOpenChart: (com.oguricap.efb.data.Chart) -> Unit,
+    onOpenChart: (Chart) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     // 从阅读页/机场页退回搜索页时回到原来那一屏，而不是列表顶部
@@ -102,7 +105,8 @@ fun SearchScreen(
                     .focusRequester(focusRequester)
                     .onFocusChanged { state -> if (state.isFocused) keyboard?.show() },
                 interactionSource = interactionSource,
-                placeholder = { Text("四字码、机场名或图名") },
+                // 把「机场优先」写进提示：用户输入四字码时期待的是机场，不是一堆散图
+                placeholder = { Text("搜机场：ZGGG / 广州；或搜图名：ILS") },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 colors = TextFieldDefaults.colors(),
@@ -128,40 +132,78 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) { CircularProgressIndicator() }
-                else -> LazyColumn(state = searchState, modifier = Modifier.fillMaxSize()) {
-                    // 已选航图跨机场汇总：一次飞行只用得上几张图，
-                    // 从 A 机场的离场图跳到 B 机场的进场图不必先搜机场
-                    if (vm.departures.isNotEmpty()) {
-                        item(key = "pin-dep-header") {
-                            SectionHeader("离场（已选 " + vm.departures.size + "）")
+                else -> {
+                    val searching = vm.query.isNotBlank()
+                    LazyColumn(state = searchState, modifier = Modifier.fillMaxSize()) {
+                        // 首页（未搜索）：已选的离场 / 进场图是飞行中最快的入口，置顶
+                        if (!searching) pinnedSections(vm, onOpenChart)
+
+                        // 搜索时「机场大类」永远在最上面。
+                        // 输入 ZGGG 第一屏就是广州白云这个机场，点进去按图型挑图，
+                        // 不再先铺开上百张具体航图。
+                        if (vm.airports.isNotEmpty()) {
+                            item(key = "airport-header") {
+                                SectionHeader(
+                                    if (searching) "机场 " + vm.airports.size + " 个 · 点进去按图型查看"
+                                    else "机场 " + vm.airports.size + " 个",
+                                )
+                            }
+                            items(vm.airports, key = { "airport-" + it.icao }) { airport ->
+                                AirportRow(
+                                    airport = airport,
+                                    // 四字码精确命中时用主色整卡高亮，一眼看到要找的机场
+                                    highlighted = searching &&
+                                        airport.icao.equals(vm.query.trim(), ignoreCase = true),
+                                    onClick = { onOpenAirport(airport.icao) },
+                                )
+                            }
                         }
-                        items(vm.departures, key = { "pin-dep-" + it.file }) { chart ->
-                            PinnedHitRow(chart) { onOpenChart(chart) }
+
+                        if (searching && vm.airports.isEmpty() && vm.chartHits.isEmpty()) {
+                            item(key = "no-result") { EmptyHint(vm.query.trim()) }
                         }
-                    }
-                    if (vm.arrivals.isNotEmpty()) {
-                        item(key = "pin-arr-header") {
-                            SectionHeader("进场（已选 " + vm.arrivals.size + "）")
+
+                        // 只有查询词没命中任何机场时才会走到这里（如 ILS、RWY36L）
+                        if (vm.chartHits.isNotEmpty()) {
+                            item(key = "chart-header") {
+                                SectionHeader("图名匹配 " + vm.chartHits.size + " 条")
+                            }
+                            items(vm.chartHits, key = { "chart-" + it.id }) { chart ->
+                                ChartHitRow(chart) { onOpenChart(chart) }
+                            }
+                            item(key = "chart-divider") { HorizontalDivider() }
                         }
-                        items(vm.arrivals, key = { "pin-arr-" + it.file }) { chart ->
-                            PinnedHitRow(chart) { onOpenChart(chart) }
-                        }
-                    }
-                    if (vm.chartHits.isNotEmpty()) {
-                        item {
-                            SectionHeader("图名匹配 " + vm.chartHits.size + " 条")
-                        }
-                        items(vm.chartHits, key = { "chart-" + it.id }) { chart ->
-                            ChartHitRow(chart) { onOpenChart(chart) }
-                        }
-                        item { HorizontalDivider() }
-                    }
-                    item { SectionHeader("机场 " + vm.airports.size + " 个") }
-                    items(vm.airports, key = { "airport-" + it.icao }) { airport ->
-                        AirportRow(airport) { onOpenAirport(airport.icao) }
+
+                        // 搜索时已选区不抢首屏，移到结果后面
+                        if (searching) pinnedSections(vm, onOpenChart)
                     }
                 }
             }
+        }
+    }
+}
+
+// 已选航图跨机场汇总：一次飞行只用得上几张图，
+// 从 A 机场的离场图跳到 B 机场的进场图不必先搜机场。
+// 首页置顶、搜索时沉底，由调用方决定顺序。
+private fun LazyListScope.pinnedSections(
+    vm: ChartViewModel,
+    onOpenChart: (Chart) -> Unit,
+) {
+    if (vm.departures.isNotEmpty()) {
+        item(key = "pin-dep-header") {
+            SectionHeader("离场（已选 " + vm.departures.size + "）")
+        }
+        items(vm.departures, key = { "pin-dep-" + it.file }) { chart ->
+            PinnedHitRow(chart) { onOpenChart(chart) }
+        }
+    }
+    if (vm.arrivals.isNotEmpty()) {
+        item(key = "pin-arr-header") {
+            SectionHeader("进场（已选 " + vm.arrivals.size + "）")
+        }
+        items(vm.arrivals, key = { "pin-arr-" + it.file }) { chart ->
+            PinnedHitRow(chart) { onOpenChart(chart) }
         }
     }
 }
@@ -176,27 +218,68 @@ private fun SectionHeader(text: String) {
     )
 }
 
+// 机场大类卡片：四字码 + 中文名 + 图数 + 进入箭头，整张卡都是点击区
 @Composable
-private fun AirportRow(airport: Airport, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun AirportRow(airport: Airport, highlighted: Boolean, onClick: () -> Unit) {
+    val foreground = if (highlighted) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = if (highlighted) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+        ),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = airport.icao,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (highlighted) foreground else MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = airport.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = foreground,
+                )
+            }
+            Text(
+                text = airport.chartCount.toString() + " 张航图",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (highlighted) foreground else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "查看该机场航图",
+                tint = if (highlighted) foreground else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyHint(query: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(text = "没有找到「" + query + "」", style = MaterialTheme.typography.titleSmall)
         Text(
-            text = airport.icao,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = "  " + airport.name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = airport.chartCount.toString(),
-            style = MaterialTheme.typography.bodyMedium,
+            text = "试试机场四字码（ZGGG）、中文机场名（广州），或图名关键词（ILS）。",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -204,7 +287,7 @@ private fun AirportRow(airport: Airport, onClick: () -> Unit) {
 
 // 已选航图的紧凑行：机场码 + 图名，点击直接开图
 @Composable
-private fun PinnedHitRow(chart: com.oguricap.efb.data.Chart, onClick: () -> Unit) {
+private fun PinnedHitRow(chart: Chart, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -230,7 +313,7 @@ private fun PinnedHitRow(chart: com.oguricap.efb.data.Chart, onClick: () -> Unit
 }
 
 @Composable
-private fun ChartHitRow(chart: com.oguricap.efb.data.Chart, onClick: () -> Unit) {
+private fun ChartHitRow(chart: Chart, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),

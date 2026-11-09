@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +26,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +54,10 @@ fun ChecklistListScreen(
     vm: ReferenceViewModel,
     onOpenAircraft: (String) -> Unit,
     onOpenDoc: (String) -> Unit,
+    onDeleteCustom: (String) -> Unit = {},
 ) {
+    // 待确认删除的自定义检查单 id：删除不可撤销，点一下按钮先问一次
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
     // 从详情页或别的标签页回来时回到原来那一屏，而不是列表顶部
     val saved = vm.savedScroll(SCROLL_LIST)
     val listState = rememberLazyListState(
@@ -107,10 +115,38 @@ fun ChecklistListScreen(
                     )
                 }
                 items(aircraft, key = { it.id }) { ac ->
-                    AircraftRow(ac) { onOpenAircraft(ac.id) }
+                    val custom = vm.isCustom(ac.id)
+                    AircraftRow(
+                        aircraft = ac,
+                        custom = custom,
+                        onClick = { onOpenAircraft(ac.id) },
+                        // 内置检查单只读：不给任何删除/编辑入口
+                        onDelete = if (custom) ({ pendingDelete = ac.id }) else null,
+                    )
                 }
             }
         }
+    }
+
+    val toDelete = pendingDelete
+    if (toDelete != null) {
+        val name = vm.aircraft(toDelete)?.name ?: "这份检查单"
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除自定义检查单") },
+            text = { Text("「" + name + "」和它的勾选进度都会被删除，且无法恢复。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = null
+                    onDeleteCustom(toDelete)
+                }) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+            },
+        )
     }
 }
 
@@ -139,10 +175,15 @@ private fun DocRow(doc: ReferenceDoc, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AircraftRow(aircraft: AircraftChecklist, onClick: () -> Unit) {
+private fun AircraftRow(
+    aircraft: AircraftChecklist,
+    custom: Boolean,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -150,11 +191,25 @@ private fun AircraftRow(aircraft: AircraftChecklist, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
+            if (custom) {
+                Text(
+                    text = "自定义",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
             Text(
                 text = aircraft.phases.size.toString() + " 阶段",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // 按钮自己消费点击事件，不会连带打开详情页
+            if (onDelete != null) {
+                TextButton(onClick = onDelete) {
+                    Text("删除", fontSize = MaterialTheme.typography.labelMedium.fontSize)
+                }
+            }
         }
         if (aircraft.note.isNotBlank()) {
             Text(
@@ -172,6 +227,8 @@ fun ChecklistDetailScreen(
     vm: ReferenceViewModel,
     aircraftId: String,
     onBack: () -> Unit,
+    onOpenAircraft: (String) -> Unit = {},
+    onEditCustom: (String) -> Unit = {},
 ) {
     val aircraft = vm.aircraft(aircraftId)
     val key = scrollKey(aircraftId)
@@ -199,6 +256,22 @@ fun ChecklistDetailScreen(
                 subtitle = if (total > 0) "已勾 " + checkedCount + " / " + total + " 项" else "",
                 onBack = onBack,
                 actions = {
+                    // 内置检查单只读：不给「编辑」，只给一份可编辑的副本
+                    if (aircraft != null) {
+                        if (vm.isCustom(aircraft.id)) {
+                            TextButton(onClick = { onEditCustom(aircraftId) }) {
+                                Text("编辑")
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    vm.duplicateBuiltin(aircraftId)?.let { onOpenAircraft(it.id) }
+                                },
+                            ) {
+                                Text("复制一份")
+                            }
+                        }
+                    }
                     // 每份检查单各自的复位，只有勾过才可点
                     TextButton(
                         onClick = { vm.resetChecklist(aircraftId) },
@@ -215,12 +288,14 @@ fun ChecklistDetailScreen(
             return@Scaffold
         }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding)) {
-            itemsIndexed(aircraft.phases, key = { _, phase -> phase.name }) { phaseIndex, phase ->
-                val expanded = phase.name in vm.expandedPhases
+            // 键优先用 uid：自定义检查单里用户可能建两个同名阶段，用名字当键会撞
+            itemsIndexed(aircraft.phases, key = { _, phase -> phase.uid.ifBlank { phase.name } }) { phaseIndex, phase ->
+                val phaseKey = phase.uid.ifBlank { phase.name }
+                val expanded = phaseKey in vm.expandedPhases
                 val doneInPhase = vm.checkedInPhase(aircraftId, phaseIndex)
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .clickable { vm.togglePhase(phase.name) }
+                        .clickable { vm.togglePhase(phaseKey) }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -254,7 +329,9 @@ fun ChecklistDetailScreen(
                 }
                 if (expanded) {
                     phase.items.forEachIndexed { itemIndex, item ->
-                        val itemKey = ChecklistProgress.itemKey(phaseIndex, itemIndex)
+                        // 自定义条目有 uid，用它当键；内置没有 uid，回落成序号，行为不变。
+                        // 自定义检查单能重排条目，序号会平移，只有 uid 不会串位。
+                        val itemKey = item.uid.ifBlank { ChecklistProgress.itemKey(phaseIndex, itemIndex) }
                         val done = vm.isChecked(aircraftId, itemKey)
                         ChecklistRow(
                             item = item.item,

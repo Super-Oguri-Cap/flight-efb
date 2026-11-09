@@ -32,9 +32,31 @@ keystore/
 *.zip
 *.tar.gz
 
+# 多版本 APK 的本地归档目录（内部 *.apk 已被忽略，这里把整个目录挡住，
+# 免得 git status 里一直挂着一个空的未跟踪目录）
+APKs/
+
+# 根目录只留 README / NOTICE / LICENSE，其余文档在 docs/（docs/ 要入库，别忽略）
+
 # 编辑器
 .vscode/
 *.swp
 
 # 临时
 _tmp/
+
+# ---- Navigraph / Jeppesen 受限数据：绝不入库 ----
+# cycle_info.txt 明确写明 may not be copied, modified, published, sold or
+# distributed，仅供个人本地模拟使用。仓库是公开的，一旦 commit 即构成公开分发。
+#
+# X-Plane 导航数据：解压产物约 217 MB / 1.7 万个 .dat，只留本机
+# 压缩包 *.zip 已由上面的规则忽略
+navData/
+
+# 公司航路 .fms（同样来自 Navigraph 派生数据）
+co-routes/
+
+# 按扩展名兜底：导航数据散落别处时也不会误提交
+*.dat
+*.fms
+*.fms.bak

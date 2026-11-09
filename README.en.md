@@ -37,7 +37,7 @@ AIP航图库/
 └─ 00_ENR通用资料/
 ```
 
-The first level is the airport (`ICAO_City_Name`), the second level is the chart type (`01_` through `10_`). Full rules are in [航图库结构与命名规范.md](航图库结构与命名规范.md) (Chinese). Inside the app, **Settings → Generate spec document** writes the same file to `/sdcard/Download/`.
+The first level is the airport (`ICAO_City_Name`), the second level is the chart type (`01_` through `10_`). Full rules are in [航图库结构与命名规范.md](docs/航图库结构与命名规范.md) (Chinese). Inside the app, **Settings → Generate spec document** writes the same file to `/sdcard/Download/`.
 
 ## Building
 

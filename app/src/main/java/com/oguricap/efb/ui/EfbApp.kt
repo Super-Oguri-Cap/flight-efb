@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -24,30 +25,30 @@ import com.oguricap.efb.data.Chart
 import com.oguricap.efb.ui.charts.AirportScreen
 import com.oguricap.efb.ui.checklist.ChecklistDetailScreen
 import com.oguricap.efb.ui.checklist.ChecklistListScreen
+import com.oguricap.efb.ui.checklist.CustomChecklistEditorScreen
 import com.oguricap.efb.ui.checklist.ReferenceDocScreen
-import com.oguricap.efb.ui.qrh.QrhScreen
-import com.oguricap.efb.ui.qrh.QrhSectionScreen
 import com.oguricap.efb.ui.reader.ReaderScreen
 import com.oguricap.efb.ui.search.SearchScreen
 import com.oguricap.efb.ui.settings.SettingsScreen
+import com.oguricap.efb.ui.tools.ToolsScreen
 
 // 顶层三个标签，每个标签维护自己的页面栈。
 // 页面栈全部用字符串保存（rememberSaveable），Activity 重建后能回到原来的位置。
 sealed interface Tab {
     data object Charts : Tab
     data object Checklists : Tab
-    data object Qrh : Tab
+    data object Tools : Tab
 
     companion object {
         fun fromKey(key: String): Tab = when (key) {
             "checklists" -> Checklists
-            "qrh" -> Qrh
+            "tools" -> Tools
             else -> Charts
         }
 
         fun key(tab: Tab): String = when (tab) {
             is Checklists -> "checklists"
-            is Qrh -> "qrh"
+            is Tools -> "tools"
             else -> "charts"
         }
     }
@@ -85,10 +86,6 @@ fun EfbApp(
     // 阅读页全屏：顶栏由阅读页自己隐藏，这里只负责把底部标签栏一起收掉
     var immersive by rememberSaveable { mutableStateOf(false) }
 
-    // QRH 栈
-    var qrhPage by rememberSaveable { mutableStateOf(PAGE_INDEX) }
-    var qrhArg by rememberSaveable { mutableStateOf("") }
-
     val referenceVm: ReferenceViewModel = viewModel()
 
     // 重建后当前机场的图还没加载，补一次
@@ -120,24 +117,22 @@ fun EfbApp(
 
     fun checklistBack() {
         immersive = false
-        checklistPage = PAGE_LIST
-    }
-
-    fun qrhBack() {
-        qrhPage = PAGE_INDEX
+        // 从编辑器返回要回到副本详情，而不是直接跳回列表 —— 用户刚改完还想看勾选效果
+        checklistPage = if (checklistPage == PAGE_EDIT) PAGE_DETAIL else PAGE_LIST
     }
 
     val canGoBack = when (tab) {
         is Tab.Charts -> chartPage != PAGE_SEARCH
         is Tab.Checklists -> checklistPage != PAGE_LIST
-        is Tab.Qrh -> qrhPage != PAGE_INDEX
+        // 工具页没有内部页面栈，返回键交给系统（退出 App）
+        is Tab.Tools -> false
     }
 
     BackHandler(enabled = canGoBack) {
         when (tab) {
             is Tab.Charts -> chartBack()
             is Tab.Checklists -> checklistBack()
-            is Tab.Qrh -> qrhBack()
+            is Tab.Tools -> {}
         }
     }
 
@@ -157,10 +152,10 @@ fun EfbApp(
                     label = { Text("检查单") },
                 )
                 NavigationBarItem(
-                    selected = tab is Tab.Qrh,
-                    onClick = { tabKey = Tab.key(Tab.Qrh) },
-                    icon = { Icon(Icons.Filled.Menu, contentDescription = null) },
-                    label = { Text("QRH") },
+                    selected = tab is Tab.Tools,
+                    onClick = { tabKey = Tab.key(Tab.Tools) },
+                    icon = { Icon(Icons.Filled.Build, contentDescription = null) },
+                    label = { Text("航路/油量") },
                 )
             }
         },
@@ -234,6 +229,7 @@ fun EfbApp(
                             checklistDoc = id
                             checklistPage = PAGE_DOC
                         },
+                        onDeleteCustom = { id -> referenceVm.deleteCustom(id) },
                     )
 
                     PAGE_DOC -> {
@@ -253,28 +249,31 @@ fun EfbApp(
                         }
                     }
 
+                    // 编辑器必须排在 else 之前：else 是详情页的兜底分支
+                    PAGE_EDIT -> CustomChecklistEditorScreen(
+                        vm = referenceVm,
+                        checklistId = checklistArg,
+                        onBack = { checklistBack() },
+                    )
+
                     else -> ChecklistDetailScreen(
                         vm = referenceVm,
                         aircraftId = checklistArg,
                         onBack = { checklistBack() },
-                    )
-                }
-
-                is Tab.Qrh -> when (qrhPage) {
-                    PAGE_INDEX -> QrhScreen(
-                        vm = referenceVm,
-                        onOpenSection = { id ->
-                            qrhArg = id
-                            qrhPage = PAGE_SECTION
+                        // 复制内置检查单后直接进副本详情，用户不用回列表再找一遍
+                        onOpenAircraft = { id ->
+                            checklistArg = id
+                            checklistPage = PAGE_DETAIL
+                        },
+                        onEditCustom = { id ->
+                            checklistArg = id
+                            checklistPage = PAGE_EDIT
                         },
                     )
-
-                    else -> QrhSectionScreen(
-                        vm = referenceVm,
-                        sectionId = qrhArg,
-                        onBack = { qrhBack() },
-                    )
                 }
+
+                // 工具页自带 ViewModel（viewModel() 默认参数），这里不传
+                is Tab.Tools -> ToolsScreen()
             }
         }
     }
@@ -287,5 +286,5 @@ private const val PAGE_SETTINGS = "settings"
 private const val PAGE_LIST = "list"
 private const val PAGE_DETAIL = "detail"
 private const val PAGE_DOC = "doc"
-private const val PAGE_INDEX = "index"
+private const val PAGE_EDIT = "edit"
 private const val PAGE_SECTION = "section"

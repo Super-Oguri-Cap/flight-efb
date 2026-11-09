@@ -18,9 +18,11 @@ android {
         applicationId = "com.oguricap.efb"
         minSdk = 34
         targetSdk = 36
-        // 1.2.2：顶栏长标题不再裁掉说明行
-        versionCode = 6
-        versionName = "1.2.2"
+        // 1.3.6：整体换成航路生成器的深色配色；工具页去掉底部操作条，
+        //        保存/航路库收进可展开胶囊，方案自动读取；移除 QRH 标签；
+        //        导航数据落本机缓存，导入一次长期有效
+        versionCode = 13
+        versionName = "1.3.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

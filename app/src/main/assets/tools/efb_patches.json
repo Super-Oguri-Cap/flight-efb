@@ -1,0 +1,66 @@
+{
+  "_comment": "网页工具的补丁配置。Kotlin 侧只认这份文件的结构，不含任何锚点字面量。换新版 HTML 时：正常情况 0 改动；锚点漂移只改本文件或 efb_shim.js（都是非 Kotlin 资源）。",
+  "schema": 1,
+  "bridgeVersion": "1",
+  "tools": {
+    "tools/route_gen.html": {
+      "baseUrl": "https://efb.local/route.html",
+      "versionRegex": "v(\\d+\\.\\d+)",
+      "requiredConsts": ["Codec", "DatasetLoader", "Geo", "PackCodec", "DataStore", "NavParser", "UI", "AipParser"],
+      "requiredLiterals": [
+        "URL.createObjectURL",
+        "a.download",
+        "a.click()",
+        "id=\"fileNav\""
+      ],
+      "patches": [
+        {
+          "id": "bridge",
+          "marker": "__EFB_BRIDGE__",
+          "anchor": "</script>\\s*</body>",
+          "anchorType": "regex",
+          "mode": "insertBetween",
+          "afterLiteral": "</script>",
+          "shimAsset": "efb_shim.js",
+          "wrapScript": true
+        },
+        {
+          "id": "export",
+          "marker": "window.__EFB_EXPORT_GUARD__ = 1;",
+          "anchor": "function downloadJson(filename, obj) {",
+          "anchorType": "literal",
+          "mode": "replace",
+          "payloadText": "window.__EFB_EXPORT_GUARD__ = 1; window.__EFB_EXPORT_HOOKED__ = true;\n  function downloadJson(filename, obj) {\n    if (window.Android && Android.exportJson) { Android.exportJson(filename, JSON.stringify(obj)); return; }"
+        }
+      ],
+      "runtime": {}
+    },
+    "tools/fuel_calc.html": {
+      "baseUrl": "https://efb.local/fuel.html",
+      "versionRegex": "APP_VERSION\\s*=\\s*'([^']+)'",
+      "requiredConsts": [],
+      "requiredLiterals": [
+        "id=\"dist\"",
+        "id=\"aircraft\"",
+        "id=\"regime\"",
+        "function calc()",
+        "function runSelfTests()"
+      ],
+      "patches": [
+        {
+          "id": "skin",
+          "marker": "__EFB_FUEL_SKIN__",
+          "anchor": "</script>\\s*</body>",
+          "anchorType": "regex",
+          "mode": "insertBetween",
+          "afterLiteral": "</script>",
+          "shimAsset": "efb_fuel_skin.js",
+          "wrapScript": true
+        }
+      ],
+      "runtime": {
+        "distanceJs": "(()=>{var el=document.getElementById('dist');if(!el)return false;el.value=String(__NM__);el.dispatchEvent(new Event('input',{bubbles:true}));if(typeof calc==='function')calc();return true;})()"
+      }
+    }
+  }
+}

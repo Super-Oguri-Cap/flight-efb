@@ -90,6 +90,18 @@ class ChartIndexTest {
         }
     }
 
+    // 旧版 searchCharts 带 `OR icao = ?`，搜 ZGGG 会把整个机场的图全列出来。
+    // 现在四字码只走机场大类，图名搜索必须真正来自标题。
+    @Test
+    fun searching_icao_does_not_list_whole_airport_charts() {
+        open().use { index ->
+            val all = index.charts("ZGGG")
+            val hits = index.searchCharts("ZGGG")
+            assertTrue("四字码不应把该机场所有航图都列出来", hits.size < all.size)
+            assertTrue(hits.all { it.title.contains("ZGGG", ignoreCase = true) })
+        }
+    }
+
     @Test
     fun search_escapes_like_wildcards() {
         open().use { index ->

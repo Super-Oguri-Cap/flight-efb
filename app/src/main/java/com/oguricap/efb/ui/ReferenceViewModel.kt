@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import com.oguricap.efb.data.AircraftChecklist
 import com.oguricap.efb.data.ChecklistProgress
+import com.oguricap.efb.data.CustomChecklistStore
 import com.oguricap.efb.data.QrhBook
 import com.oguricap.efb.data.QrhSection
 import com.oguricap.efb.data.ReferenceDoc
@@ -20,8 +21,14 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     private val library = ReferenceLibrary.get(app)
     private val settings = Settings(app)
     private val progressStore = ChecklistProgress(app)
+    private val customStore = CustomChecklistStore(app)
 
-    val checklists: List<AircraftChecklist> get() = library.checklists
+    // 自定义检查单改动后要立刻刷新这个状态，界面才会跟着变
+    var customChecklists: List<AircraftChecklist> by mutableStateOf(customStore.list())
+        private set
+
+    // 内置在前、自定义在后；自定义的 id 都是 custom_ 开头，靠它分流
+    val checklists: List<AircraftChecklist> get() = library.checklists + customChecklists
     val qrh: QrhBook get() = library.qrh
     val docs: List<ReferenceDoc> get() = ReferenceDocs.all
 
@@ -40,6 +47,34 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     fun section(id: String): QrhSection? = qrh.sections.firstOrNull { it.id == id }
 
     fun doc(id: String): ReferenceDoc? = ReferenceDocs.get(id)
+
+    // ---- 自定义检查单 ----
+
+    // 内置数据随 APK 分发，只读；用户想改只能先复制出一份可编辑的副本
+    fun isCustom(id: String): Boolean = id.startsWith(CUSTOM_PREFIX)
+
+    fun refreshCustom() {
+        customChecklists = customStore.list()
+    }
+
+    fun duplicateBuiltin(id: String): AircraftChecklist? {
+        val source = library.checklists.firstOrNull { it.id == id } ?: return null
+        val copy = customStore.create(source)
+        refreshCustom()
+        return copy
+    }
+
+    fun updateCustom(checklist: AircraftChecklist) {
+        customStore.update(checklist)
+        refreshCustom()
+    }
+
+    fun deleteCustom(id: String) {
+        customStore.delete(id)
+        // 内存里那份进度缓存也一起丢掉，别留着占地方
+        progress.remove(id)
+        refreshCustom()
+    }
 
     fun togglePhase(name: String) {
         val open = name in expandedPhases
@@ -65,47 +100,87 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- 勾选进度 ----
+    //
+    // 内置检查单的键是「阶段序号/条目序号」，落在 ChecklistProgress；
+    // 自定义检查单可编辑可重排，序号会变，键改用条目的 uid，落在 CustomChecklistStore。
+    // 下面所有方法都按 id 前缀分流，内置那一路的行为一个字都没改。
 
     // 每个机型一份，第一次进详情页时才从磁盘读，避免启动时把 22 份全读一遍
     private val progress = mutableStateMapOf<String, Set<String>>()
 
     fun ensureProgress(aircraftId: String) {
-        if (aircraftId !in progress) progress[aircraftId] = progressStore.load(aircraftId)
+        if (aircraftId in progress) return
+        progress[aircraftId] =
+            if (isCustom(aircraftId)) customStore.loadProgress(aircraftId)
+            else progressStore.load(aircraftId)
     }
 
     fun isChecked(aircraftId: String, itemKey: String): Boolean =
         progress[aircraftId]?.contains(itemKey) == true
 
-    fun checkedCount(aircraftId: String): Int = progress[aircraftId]?.size ?: 0
+    fun checkedCount(aircraftId: String): Int {
+        val current = progress[aircraftId].orEmpty()
+        if (!isCustom(aircraftId)) return current.size
+        // 条目被删掉后它的 uid 还留在集合里，不计入总数，否则会出现「已勾 5 / 4」
+        val alive = aircraft(aircraftId)?.phases
+            ?.flatMap { it.items }
+            ?.map { it.uid }
+            ?.toSet()
+            .orEmpty()
+        return if (alive.isEmpty()) 0 else current.count { it in alive }
+    }
 
     // 点一下打勾，再点一下撤销
     fun toggleItem(aircraftId: String, itemKey: String) {
         val current = progress[aircraftId].orEmpty()
         val next = if (itemKey in current) current - itemKey else current + itemKey
         progress[aircraftId] = next
-        progressStore.save(aircraftId, next)
+        saveProgress(aircraftId, next)
     }
 
-    // 只清某一个阶段：键是「阶段序号/条目序号」，按前缀筛即可
+    // 只清某一个阶段
     fun resetPhase(aircraftId: String, phaseIndex: Int) {
-        val prefix = phaseIndex.toString() + "/"
         val current = progress[aircraftId].orEmpty()
-        val next = current.filterNot { it.startsWith(prefix) }.toSet()
+        val next = if (isCustom(aircraftId)) {
+            // 自定义的键是 uid，算不出前缀，只能把这一阶段的 uid 全找出来做差集
+            current - phaseUidSet(aircraftId, phaseIndex)
+        } else {
+            current.filterNot { it.startsWith(phasePrefix(phaseIndex)) }.toSet()
+        }
         if (next.size == current.size) return
         progress[aircraftId] = next
-        progressStore.save(aircraftId, next)
+        saveProgress(aircraftId, next)
     }
 
     fun checkedInPhase(aircraftId: String, phaseIndex: Int): Int {
-        val prefix = phaseIndex.toString() + "/"
-        return progress[aircraftId].orEmpty().count { it.startsWith(prefix) }
+        val current = progress[aircraftId].orEmpty()
+        if (isCustom(aircraftId)) {
+            val uids = phaseUidSet(aircraftId, phaseIndex)
+            return if (uids.isEmpty()) 0 else current.count { it in uids }
+        }
+        val prefix = phasePrefix(phaseIndex)
+        return current.count { it.startsWith(prefix) }
     }
 
     // 每份检查单自己的复位
     fun resetChecklist(aircraftId: String) {
         progress[aircraftId] = emptySet()
-        progressStore.save(aircraftId, emptySet())
+        saveProgress(aircraftId, emptySet())
     }
+
+    private fun saveProgress(aircraftId: String, keys: Set<String>) {
+        if (isCustom(aircraftId)) customStore.saveProgress(aircraftId, keys)
+        else progressStore.save(aircraftId, keys)
+    }
+
+    // 自定义检查单里一个阶段的全部条目 uid
+    private fun phaseUidSet(aircraftId: String, phaseIndex: Int): Set<String> =
+        aircraft(aircraftId)?.phases?.getOrNull(phaseIndex)?.items
+            ?.mapNotNull { it.uid.takeIf { uid -> uid.isNotBlank() } }
+            ?.toSet()
+            .orEmpty()
+
+    private fun phasePrefix(phaseIndex: Int) = phaseIndex.toString() + "/"
 
     // ---- 列表滚动位置 ----
     // 三个页面栈（检查单列表、检查单详情、QRH 索引、QRH 分组）共用一张表。
@@ -117,5 +192,10 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rememberScroll(key: String, index: Int, offset: Int) {
         scrolls[key] = index to offset
+    }
+
+    companion object {
+        // 自定义检查单的 id 前缀，也是分流依据（CustomChecklistStore.create 生成）
+        const val CUSTOM_PREFIX = "custom_"
     }
 }
