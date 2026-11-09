@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>航路生成器 v8.6</title>
+<title>航路生成器 v9.2</title>
 <style>
 :root{
   --bg:#0f141a; --panel:#1a212b; --panel2:#141a22; --line:#2a3441;
@@ -144,6 +144,9 @@ input.aptbad:focus{border-color:var(--bad)}
 .plan .proute .hw{color:var(--accent);font-weight:700}
 .plan .proute .dct{color:#5a6879}
 .plan .proute .apt{color:#fff;font-weight:700}
+.plan .plev{margin:0 12px 10px;padding:6px 9px;border-left:2px solid var(--warn);
+  background:rgba(255,178,44,.09);border-radius:4px;font-family:var(--mono);
+  font-size:10.5px;line-height:1.65;color:var(--warn)}
 .radio-group{display:flex;gap:6px}
 .radio-group label{flex:1;height:32px;display:flex;align-items:center;justify-content:center;gap:6px;
   cursor:pointer;border:1px solid var(--line);border-radius:6px;background:var(--panel2);font-size:12.5px;color:var(--dim)}
@@ -414,6 +417,7 @@ html[data-theme="light"] .plan .pcopy.copied{background:#e8f7ef;border-color:#b7
 html[data-theme="light"] .plan .pdist{color:#0f1c2b}
 html[data-theme="light"] .plan .proute{color:#33475e}
 html[data-theme="light"] .plan .proute .apt{color:#0b1220}
+html[data-theme="light"] .plan .plev{background:#fff6e5;color:#8a5c10}
 html[data-theme="light"] .plan .proute .dct{color:#93a3b5}
 html[data-theme="light"] .radio-group label{background:#f7f9fc}
 html[data-theme="light"] .radio-group label:has(input:checked){background:#e6f0fc;color:#12406e;border-color:var(--accent)}
@@ -511,7 +515,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
 <body>
 
 <div id="toolbar">
-  <div class="brand"><span class="dot"></span>航路生成器<small>v8.6</small></div>
+  <div class="brand"><span class="dot"></span>航路生成器<small>v9.2</small></div>
   <span id="dataTag" title="当前数据源">数据加载中…</span>
   <button id="btnTheme" title="切换白天 / 黑夜">☀️</button>
   <button id="btnData" title="导入 / 管理导航数据">数据管理</button>
@@ -597,7 +601,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
   <div class="mbox">
     <div class="mhead">
       <span class="t">数据管理</span>
-      <span class="hint2" style="margin-left:6px">v8.6 · 不带任何第三方导航数据，数据由你导入</span>
+      <span class="hint2" style="margin-left:6px">v9.2 · 不带任何第三方导航数据，数据由你导入</span>
       <button class="x" id="dclose" title="关闭 (Esc)">✕</button>
     </div>
 
@@ -1743,12 +1747,41 @@ const PathFinder = (function () {
     }
   }
 
+  /* ---------------- v9：高度约束「严格优先 + 软回退」 ----------------
+   * v3–v8 把 minFL ≤ cruiseFL ≤ maxFL 当硬过滤，不合规的边直接不进图。
+   * 真实数据（尤其 Navigraph r4）里有大量合法但高度带很窄的航段，
+   * 一旦它们是进出某片空域的唯一通道，机场就成了孤岛 → 结果页「无方案」。
+   *
+   * Little Navmap 的做法是：算航线时仍旧用整个网络，算完再把违反上下限的
+   * 航段标红。v9 折中成两段式：
+   *   1) 先按老规矩严格搜（结果与 v8.7 完全一致）
+   *   2) 严格无解时才放开高度带，按「越界量」加权代价搜一条最不坏的
+   * 放宽后仍逐段标注，不静默。
+   */
+  const LEVEL_PENALTY_BASE_NM = 400;   // 每段越界的基础代价（NM）
+  const LEVEL_PENALTY_PER_FL = 4;      // 每越界 1 个 FL（100 ft）追加的代价
+
+  /** 越界量（FL）：未越界返回 0 */
+  function levelExcessFL(e, cruiseFL) {
+    if (cruiseFL === null || cruiseFL === undefined) return 0;
+    if (cruiseFL < e.minFL) return e.minFL - cruiseFL;
+    if (cruiseFL > e.maxFL) return cruiseFL - e.maxFL;
+    return 0;
+  }
+
+  /** 软约束下该边的附加代价 */
+  function levelPenalty(e, cruiseFL) {
+    const ex = levelExcessFL(e, cruiseFL);
+    return ex ? LEVEL_PENALTY_BASE_NM + ex * LEVEL_PENALTY_PER_FL : 0;
+  }
+
   /**
    * A* 搜索
-   * @param cruiseFL 巡航 FL（整数）。边过滤条件：minFL <= cruiseFL <= maxFL
+   * @param cruiseFL 巡航 FL（整数）。严格模式：minFL <= cruiseFL <= maxFL
    *                 null 表示不做高度过滤（用于对比面板的自由模式）
+   * @param soft     true = 不剪边，只按越界量加代价（v9 的放宽模式）
    */
-  function search(graph, startRef, goalRef, strategy, cruiseFL) {
+  function search(graph, startRef, goalRef, strategy, cruiseFL, soft) {
     const t0 = performance.now();
     const goal = graph.nodes[goalRef];
     if (!goal) return { ok: false, reason: '终点节点不存在。' };
@@ -1769,6 +1802,7 @@ const PathFinder = (function () {
     heap.push(startRef, h(startRef));
     let expanded = 0;
     let filteredOut = 0;
+    let softCount = 0;
 
     while (heap.size) {
       const cur = heap.pop();
@@ -1785,9 +1819,13 @@ const PathFinder = (function () {
         const e = edges[i];
         if (closed.has(e.to)) continue;
 
-        // ---- v3 §2.2 高度过滤（统一用 FL 比较）----
+        // ---- v3 §2.2 高度约束（v9：严格剪边 / soft 模式改成代价）----
         if (cruiseFL !== null && cruiseFL !== undefined) {
-          if (!(e.minFL <= cruiseFL && cruiseFL <= e.maxFL)) { filteredOut++; continue; }
+          const ex = levelExcessFL(e, cruiseFL);
+          if (ex) {
+            if (!soft) { filteredOut++; continue; }
+            softCount++;
+          }
         }
 
         // 换航路惩罚（按航路代号判断，v3 §4.6）
@@ -1814,6 +1852,9 @@ const PathFinder = (function () {
           }
         }
 
+        // v9：放宽模式下把高度越界折算成里程代价（越界越多越贵）
+        if (soft) cost += levelPenalty(e, cruiseFL);
+
         const gNew = curG + cost;
         const ex = openG.get(e.to);
         if (ex !== undefined && gNew >= ex) continue;
@@ -1830,7 +1871,7 @@ const PathFinder = (function () {
         reason: '当前数据中两机场不连通',
         detail: `起飞端可达 ${reach(graph, startRef).size} 个节点，到达端可达 ${reach(graph, goalRef).size} 个节点。` +
                 (filteredOut ? `（因高度过滤剔除 ${filteredOut} 条边）` : ''),
-        expanded, filteredOut, ms: performance.now() - t0
+        expanded, filteredOut, softCount, ms: performance.now() - t0
       };
     }
 
@@ -1853,12 +1894,13 @@ const PathFinder = (function () {
     if (cruiseFL !== null && cruiseFL !== undefined) {
       for (const s of segs) {
         if (s.terminal) continue;                 // 起降 40 NM 内是爬升/下降段，不参与巡航高度校验
-        if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) violations++;
+        if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) { violations++; s.levelBad = true; }
       }
     }
 
     return {
-      ok: true, segs, expanded, ms: performance.now() - t0, filteredOut, violations,
+      ok: true, segs, expanded, ms: performance.now() - t0, filteredOut, softCount, violations,
+      relaxed: !!soft,
       distNM: segs.reduce((s, x) => s + x.dist, 0)
     };
   }
@@ -1877,7 +1919,7 @@ const PathFinder = (function () {
    * v3 §2.4 次近层回退：按 L[k+1], L[k-1], L[k+2], L[k-2] ... 依次尝试
    * @returns { ok, level, levelFL, attempts:[{level, levelFL, ok, reason}] }
    */
-  function searchWithFallback(graph, startRef, goalRef, strategy, levelList, startIndex, maxTries) {
+  function searchWithFallback(graph, startRef, goalRef, strategy, levelList, startIndex, maxTries, soft) {
     const tries = maxTries || 5;
     const attempts = [];
     // 起点先试（最近层本身）
@@ -1892,7 +1934,7 @@ const PathFinder = (function () {
       // levelList 在 CHINA 下是「米制高度」，在 ICAO 下是「FL 数值」。
       // 搜索过滤统一用 FL，故 CHINA 必须先经 mToFL 换算，不能直接把米值当 FL。
       const fl = typeof lv === 'object' ? lv.fl : (strategy.id === 'CHINA' ? Levels.mToFL(lv) : lv);
-      const res = search(graph, startRef, goalRef, strategy, fl);
+      const res = search(graph, startRef, goalRef, strategy, fl, soft);
       attempts.push({ index: idx, level: lv, levelFL: fl, ok: res.ok,
                       reason: res.ok ? '' : (res.reason || '无路径') });
       if (res.ok) return { ok: true, level: lv, levelFL: fl, result: res, attempts };
@@ -1903,63 +1945,78 @@ const PathFinder = (function () {
   /**
    * 多方案搜索（k 条差异路径）
    * --------------------------------------------------------------------
-   * 采用「带惩罚的迭代最短路」思路（比 Yen 简单、无需重跑大量子图）：
-   *   1) 先求最优路径
-   *   2) 对该路径使用过的「关键边」加倍代价，再求一条
-   *   3) 若新路径与已有路径的节点序列相同则加大惩罚重试
-   * 这样能得到「真正不同」的备选方案，而不是同一条路上的微小变体。
+   * v9 改了这里的收益/止损，专门治「备选方案莫名其妙绕远」：
+   *   1) 惩罚不再按单边「max(25 NM, 0.6×边长)」叠，而是每条已用边只加
+   *      自身长度的 10% —— 等价于「整条备选路径多付 10%」，网络稀疏处
+   *      不会再被逼着绕半个国家。
+   *   2) 硬止损：备选比最优长 25% 以上就直接不要，宁可少给几条。
+   *   3) 重复路径先加罚到 25% 再试一次，仍然重复就收手（不再硬凑 4 条）。
    *
-   * @param cruiseFL 巡航 FL（用于航段高度硬过滤，null 表示不过滤）
+   * @param cruiseFL 巡航 FL（用于航段高度约束，null 表示不过滤）
    * @param wanted   期望方案数
    * @param maxMs    搜索总时间预算（毫秒），超时即返回已找到的方案
-   * @returns { plans: [{segs, distNM, expanded, ms, avoidedEdges}] }
+   * @param soft     true = 放宽高度（v9：严格无解时的回退）
+   * @returns { plans, totalMs, tries, relaxed, capped }
    */
-  function searchMultiple(graph, startRef, goalRef, strategy, cruiseFL, wanted, maxMs) {
+  const MAX_DETOUR_RATIO = 1.25;      // 备选最远只接受最优的 1.25 倍
+  const DIVERSIFY_PENALTY = 0.10;     // 已用边加价：边长的 10%（≈整条 +10%）
+  const ESCALATE_PENALTY = 0.25;      // 路径完全重复时的加价
+
+  function searchMultiple(graph, startRef, goalRef, strategy, cruiseFL, wanted, maxMs, soft) {
     const t0 = performance.now();
     const budget = maxMs || 12000;
     const plans = [];
     const seenSignatures = new Set();
+    let bestNM = null;
+    let capped = false;
+    let capReason = '';
+    let penaltyEscalated = false;
 
     // 边惩罚表：key = "from>to>awy"，value = 额外代价（NM）
     const penalty = new Map();
     const edgeKey = (from, to, awy) => `${from}>${to}>${awy}`;
+    const penalize = (segs, rate) => {
+      for (const s of segs) {
+        const k = edgeKey(s.from, s.to, s.awy);
+        penalty.set(k, (penalty.get(k) || 0) + s.dist * rate);
+      }
+    };
 
     const maxTries = Math.max(wanted * 4, 8);
     let tries = 0;
 
     while (plans.length < wanted && tries < maxTries) {
       tries++;
-      if (performance.now() - t0 > budget) break;
+      if (performance.now() - t0 > budget) { capped = plans.length > 0; capReason = 'budget'; break; }
 
-      const res = searchWithPenalty(graph, startRef, goalRef, strategy, cruiseFL, penalty);
+      const res = searchWithPenalty(graph, startRef, goalRef, strategy, cruiseFL, penalty, soft);
       if (!res.ok) break;
+
+      if (bestNM === null) bestNM = res.distNM;
+      // 止损：比最优长 25% 以上的备选没有展示价值
+      if (res.distNM > bestNM * MAX_DETOUR_RATIO) { capped = true; capReason = 'detour'; break; }
 
       // 路径签名：节点序列 + 航路序列，确保是真正不同的方案
       const sig = res.segs.map((s) => `${s.fromId}>${s.awy}>${s.toId}`).join('|');
       if (seenSignatures.has(sig)) {
-        // 完全重复：对整条路径加大惩罚后重试
-        for (const s of res.segs) {
-          const k = edgeKey(s.from, s.to, s.awy);
-          penalty.set(k, (penalty.get(k) || 0) + 60);
-        }
+        // 完全重复：先加一次重罚再试，仍重复就收手（不硬凑条数）
+        if (penaltyEscalated) { capped = true; capReason = 'duplicate'; break; }
+        penalize(res.segs, ESCALATE_PENALTY);
+        penaltyEscalated = true;
         continue;
       }
       seenSignatures.add(sig);
       plans.push(res);
 
-      // 惩罚本路径上的「航路段」，迫使下一条走不同航路
-      // 权重按航段长度给，避免短边被过度惩罚
-      for (const s of res.segs) {
-        const k = edgeKey(s.from, s.to, s.awy);
-        penalty.set(k, (penalty.get(k) || 0) + Math.max(25, s.dist * 0.6));
-      }
+      // 已用边统一加 10%：下一轮会优先走「确实不同但不离谱」的路
+      penalize(res.segs, DIVERSIFY_PENALTY);
     }
 
-    return { plans, totalMs: performance.now() - t0, tries };
+    return { plans, totalMs: performance.now() - t0, tries, relaxed: !!soft, capped, capReason };
   }
 
   /** 在给定惩罚表下的单次 A* */
-  function searchWithPenalty(graph, startRef, goalRef, strategy, cruiseFL, penalty) {
+  function searchWithPenalty(graph, startRef, goalRef, strategy, cruiseFL, penalty, soft) {
     const t0 = performance.now();
     const goal = graph.nodes[goalRef];
     const start = graph.nodes[startRef];
@@ -1978,6 +2035,7 @@ const PathFinder = (function () {
     heap.push(startRef, h(startRef));
     let expanded = 0;
     let filteredOut = 0;
+    let softCount = 0;
 
     while (heap.size) {
       const cur = heap.pop();
@@ -1993,9 +2051,13 @@ const PathFinder = (function () {
         const e = edges[i];
         if (closed.has(e.to)) continue;
 
-        // ---- 高度硬过滤：不满足 minFL <= cruiseFL <= maxFL 的边直接不可用 ----
+        // ---- 高度约束：严格模式剪边；soft 模式（v9）只计越界，不剪 ----
         if (cruiseFL !== null && cruiseFL !== undefined) {
-          if (!(e.minFL <= cruiseFL && cruiseFL <= e.maxFL)) { filteredOut++; continue; }
+          const ex = levelExcessFL(e, cruiseFL);
+          if (ex) {
+            if (!soft) { filteredOut++; continue; }
+            softCount++;
+          }
         }
 
         const prev = came.get(cur);
@@ -2026,6 +2088,9 @@ const PathFinder = (function () {
           if (pen) cost += pen;
         }
 
+        // v9：放宽模式下把高度越界折算成里程代价
+        if (soft) cost += levelPenalty(e, cruiseFL);
+
         const gNew = curG + cost;
         const ex = openG.get(e.to);
         if (ex !== undefined && gNew >= ex) continue;
@@ -2035,7 +2100,7 @@ const PathFinder = (function () {
       }
     }
 
-    if (!came.has(goalRef)) return { ok: false, reason: '无路径', filteredOut };
+    if (!came.has(goalRef)) return { ok: false, reason: '无路径', filteredOut, softCount };
 
     const segs = [];
     let k = goalRef;
@@ -2050,22 +2115,26 @@ const PathFinder = (function () {
       k = c.from;
     }
 
-    // 硬校验：路径上每一段必须真的满足高度约束（双保险，防止任何绕过）
+    // 逐段校验高度约束（terminal 边是起降爬升/下降段，不参与巡航高度校验）
     let violations = 0;
     if (cruiseFL !== null && cruiseFL !== undefined) {
       for (const s of segs) {
-        if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) violations++;
+        if (s.terminal) continue;
+        if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) { violations++; s.levelBad = true; }
       }
     }
 
     return {
       ok: true, segs,
       distNM: segs.reduce((s, x) => s + x.dist, 0),
-      expanded, ms: performance.now() - t0, filteredOut, violations
+      expanded, ms: performance.now() - t0, filteredOut, softCount, violations,
+      relaxed: !!soft
     };
   }
 
-  return { search, searchMultiple, searchWithPenalty, reach, searchWithFallback, MinHeap };
+  return { search, searchMultiple, searchWithPenalty, reach, searchWithFallback, MinHeap,
+           levelPenalty, levelExcessFL, LEVEL_PENALTY_BASE_NM, LEVEL_PENALTY_PER_FL,
+           MAX_DETOUR_RATIO, DIVERSIFY_PENALTY };
 })();
 
 /* ======================================================================
@@ -2976,6 +3045,16 @@ const NavParser = (function () {
     return { n, skipped };
   }
 
+  /** cycle.json 里的厂商缩写 → 显示名 */
+  function providerLabel(p) {
+    const t = String(p || '').toUpperCase();
+    if (!t) return '';
+    if (t.indexOf('NAVIGRAPH') >= 0 || t === 'NG') return 'Navigraph';
+    if (t.indexOf('AEROSOFT') >= 0) return 'Aerosoft';
+    if (t.indexOf('JEPPESEN') >= 0) return 'Jeppesen';
+    return String(p);
+  }
+
   /* ---------------- 主流程 ---------------- */
   function parse(files) {
     const t0 = Date.now();
@@ -3173,14 +3252,25 @@ const NavParser = (function () {
       airways: airways.size
     };
 
-    let cycle = '';
+    let cycle = '', provider = '';
     if (cycleText) {
-      try { const j = JSON.parse(cycleText); cycle = String(j.cycle || '').trim(); } catch (e) { /* ignore */ }
+      try {
+        const j = JSON.parse(cycleText);
+        cycle = String(j.cycle || '').trim();
+        provider = providerLabel(j.manufacturerShort || j.manufacturerLong || j.provider || '');
+      } catch (e) { /* ignore */ }
+    }
+    // v9.2：cycle.json 只用来取 AIRAC 周期 / 厂商，不是「航路条目」。
+    // 它本来就没有「条数」可数，按 0 条标红会让人以为文件坏了 → 单独标成已识别。
+    const cycleInfo = info.find((x) => x.kind === 'cycle');
+    if (cycleInfo) {
+      cycleInfo.noCount = true;
+      cycleInfo.note = cycle ? `AIRAC ${cycle}` : '已读取';
     }
     if (airportSource) console.log('[机场] 来源：' + airportSource + ' · ' + airports.length + ' 个');
 
     return {
-      pack, stats, info, warnings, cycle, airportSource,
+      pack, stats, info, warnings, cycle, provider, airportSource,
       detail: { fix: fixStat, nav: navStat, awy: awyStat, apt: aptStat },
       ms: Date.now() - t0
     };
@@ -3343,6 +3433,16 @@ const AipParser = (function () {
     const routes = [];
     const info = [];
     const warnings = [];
+    let aipCycle = '';
+
+    /** 从文件名 / 表头标题里认 AIRAC 周期，例如 “... Nr2611.csv” */
+    const detectCycle = (name, text) => {
+      const head = (String(name) + ' ' + String(text).slice(0, 400));
+      const m = head.match(/(?:Nr|AIRAC|cycle|CY)\s*[:#-]?\s*(\d{4})/i);
+      if (m) return m[1];
+      const m2 = head.match(/\b(2\d{3})\b/);
+      return m2 ? m2[1] : '';
+    };
     for (const f of files) {
       let got = [];
       try {
@@ -3353,6 +3453,7 @@ const AipParser = (function () {
         continue;
       }
       info.push({ name: f.name, ok: true, count: got.length, kind: kindOf(f.name) });
+      if (!aipCycle) aipCycle = detectCycle(f.name, f.text);
       routes.push(...got);
     }
 
@@ -3374,6 +3475,7 @@ const AipParser = (function () {
       official: { routes: uniq, index: buildIndex(uniq) },
       priority: buildPriority(uniq),
       info, warnings, byKind,
+      cycle: aipCycle,
       stats: { routes: uniq.length, airports: Object.keys(buildIndex(uniq)).length }
     };
   }
@@ -3476,6 +3578,9 @@ const UI = (function () {
     return {
       source: 'builtin',
       label: '内置数据',
+      cycle: '2611',
+      provider: '',
+      aipCycle: '2611',          // 内置的 CAAC 表是 AIRAC 2611
       createdAt: Date.now(),
       pack: {
         NODES_GLOBAL: blockText('DATA_NODES_GLOBAL'),
@@ -3561,6 +3666,7 @@ const UI = (function () {
       console.log(`[DATA] 机场 ${ds.airports.length} / 节点 ${ds.nodes.length} / 航段 ${ds.segments.length} / 航路 ${airways.size}`);
       console.log(`[CAAC] 官方航路 ${nOfficial.routes} 条 / 国内走廊 ${nOfficial.corridors} 条已载入`);
 
+      rec.label = navLabelOf(rec);        // 旧记录里的「· 5 个文件」在这里洗掉
       current = rec;
       updateDataTag(rec, ds, nOfficial);
 
@@ -3588,24 +3694,48 @@ const UI = (function () {
     box.style.display = 'block';
   }
 
+  /** v8.7：把旧版本存下来的「X-Plane AIRAC 2611 · 5 个文件」这类标签洗掉文件数 */
+  function navLabelOf(rec) {
+    const raw = String((rec && rec.label) || '').trim();
+    const cleaned = raw
+      .replace(/\s*·\s*\d+\s*个文件/g, '')
+      .replace(/\s*·\s*已导入\s*$/g, '')
+      .trim();
+    if (cleaned) return cleaned;
+    const bits = [(rec && rec.provider) || '', (rec && rec.cycle) || ''].filter(Boolean);
+    return bits.length ? bits.join(' ') : '导航数据';
+  }
+
   function updateDataTag(rec, ds, nOfficial) {
     const tag = $('dataTag');
     const line = $('dataSrc');
     if (!tag) return;
+
+    const navLabel = navLabelOf(rec);
+    const aip = rec.aipCycle ? `AIP ${rec.aipCycle}` : 'AIP 未导入';
+    const when = rec.createdAt ? new Date(rec.createdAt).toLocaleString('zh-CN', { hour12: false }) : '';
+
+    // 「已导入」是导航数据的状态：
+    //   只有导航数据 → 紧跟在导航数据后面；导航 + AIP 都有 → 放到最后，表示两样都导了
+    let badge;
     if (rec.source === 'builtin') {
-      tag.textContent = '内置数据';
-      tag.className = '';
-      tag.title = '页面里打包好的导航数据';
-      if (line) line.textContent = `内置数据 · 官方航路 ${nOfficial.routes} 条 · 走廊 ${nOfficial.corridors} 条`;
+      badge = `${navLabel} · ${aip}`;
+    } else if (rec.aipCycle) {
+      badge = `${navLabel} · AIP ${rec.aipCycle} · 已导入`;
     } else {
-      const label = String(rec.label || '用户数据');
-      tag.textContent = (label.length > 22 ? label.slice(0, 21) + '…' : label) + ' · 已导入';
-      tag.className = 'user';
-      const when = rec.createdAt ? new Date(rec.createdAt).toLocaleString('zh-CN', { hour12: false }) : '';
-      tag.title = label + (when ? '\n导入时间 ' + when : '');
-      if (line) {
-        line.textContent = `${label}${when ? ' · ' + when : ''} · 官方航路 ${nOfficial.routes} 条`;
-      }
+      badge = `${navLabel} · 已导入 · AIP 未导入`;
+    }
+    tag.textContent = badge;
+    tag.className = rec.source === 'builtin' ? '' : 'user';
+    tag.title = `导航数据：${navLabel}` +
+      `\nAIP：${rec.aipCycle ? rec.aipCycle + ' 期' : '未导入'}` +
+      `\n官方航路 ${nOfficial.routes} 条 · 国内走廊 ${nOfficial.corridors} 条` +
+      (when ? `\n导入时间 ${when}` : '');
+
+    if (line) {
+      line.textContent = `${navLabel} · ${aip}` +
+        (when ? ` · ${when}` : '') +
+        ` · 官方航路 ${nOfficial.routes} 条`;
     }
   }
 
@@ -3643,7 +3773,7 @@ const UI = (function () {
     $('out').innerHTML = `<div class="emptycard">
       <div class="ic">✈</div>
       <h2>先导入导航数据</h2>
-      <p>v8.6 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
+      <p>v9.2 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
       <div class="steps">
         <div>1. 打开 X-Plane 12 的 <b>Custom Data</b> 文件夹，找 <b>earth_fix.dat</b> + <b>earth_awy.dat</b>（必需）</div>
         <div>2. 再找 <b>apt.dat</b>：在 <b>Global Scenery\\Global Airports\\Earth nav data</b> 下</div>
@@ -3735,9 +3865,15 @@ const UI = (function () {
       if (kind === 'skip') {
         cls = 'skip'; sub = 'dimc';
       } else if (infoMap.has(f.name)) {
-        const n = infoMap.get(f.name).parsed || 0;
-        if (n > 0) { cls = 'ok'; sub = 'okc'; extra = ` · ${n.toLocaleString()} 条`; }
-        else { cls = 'bad'; sub = 'badc'; extra = ' · 解析失败 0 条'; }
+        const it = infoMap.get(f.name);
+        if (it.noCount) {
+          // v9.2：cycle.json 这类元数据文件没有「条数」，显示「AIRAC 2611 · 已识别」，不标红
+          cls = 'ok'; sub = 'okc'; extra = ` · ${it.note || '已读取'}`;
+        } else {
+          const n = it.parsed || 0;
+          if (n > 0) { cls = 'ok'; sub = 'okc'; extra = ` · ${n.toLocaleString()} 条`; }
+          else { cls = 'bad'; sub = 'badc'; extra = ' · 解析失败 0 条'; }
+        }
       } else if (kind && kind !== 'other' && kind !== 'dat') {
         cls = 'ok'; sub = 'okc';                   // 还没解析，只表示文件类型认出来了
       } else {
@@ -3845,7 +3981,8 @@ const UI = (function () {
       try {
         navParsed = NavParser.parse(navFiles);
         const cycle = navParsed.cycle || detectCycle(navFiles);
-        navParsed.label = (cycle ? `X-Plane AIRAC ${cycle}` : 'X-Plane 导航数据') + ` · ${navFiles.length} 个文件`;
+        const prov = navParsed.provider || '';
+        navParsed.label = [prov || '导航数据', cycle].filter(Boolean).join(' ');
         // 按解析结果重新着色：解析出 0 条的文件标红
         $('navList').innerHTML = fileListHtml(navFiles, NavParser.classify, navParsed.info);
         const zeroSeg = !navParsed.stats.segments;
@@ -3856,7 +3993,7 @@ const UI = (function () {
           (zeroApt && !zeroSeg ? `<div class="warnbox">没有机场数据：apt.dat 没选中或格式不认，` +
             '选机场时会是空的。</div>' : '') +
           warnHtml(navParsed.warnings) +
-          `<div class="hint2">解析用时 ${navParsed.ms} ms · 航段记录 ${navParsed.detail.awy.n} 条` +
+          `<div class="hint2">导航数据：<b>${esc(navParsed.label)}</b> · 解析用时 ${navParsed.ms} ms · 航段记录 ${navParsed.detail.awy.n} 条` +
           `（含方向限制 ${navParsed.detail.awy.withDir} 条）` +
           ` · 机场来源：${esc(navParsed.airportSource || '无')}</div>`;
         $('btnApplyNav').disabled = !(navParsed.stats.nodes && navParsed.stats.segments);
@@ -3872,10 +4009,13 @@ const UI = (function () {
       const rec = {
         source: 'xplane',
         label: navParsed.label,
+        cycle: navParsed.cycle || '',
+        provider: navParsed.provider || '',
         createdAt: Date.now(),
         pack: navParsed.pack,
         caac: current && current.caac ? current.caac : null,
         priority: current ? current.priority : null,
+        aipCycle: current ? (current.aipCycle || '') : '',
         domestic: null
       };
       const ok = await applyData(rec, {});
@@ -3946,6 +4086,7 @@ const UI = (function () {
         pack: current.pack,
         caac: aipParsed.official,
         priority: aipParsed.priority,
+        aipCycle: aipParsed.cycle || '2611',
         domestic: null
       };
       const ok = await applyData(rec, {});
@@ -4081,6 +4222,7 @@ const UI = (function () {
         const nCaac = current.caac && current.caac.routes ? current.caac.routes.length : 0;
         const nCor = current.domestic && current.domestic.corridors ? current.domestic.corridors.length : 0;
         meta.innerHTML = `来源：<b>${esc(current.label || current.source)}</b><br>` +
+          `AIP：${current.aipCycle ? current.aipCycle + ' 期' : '未导入'}<br>` +
           `时间：${esc(when)}<br>` +
           `官方航路：${nCaac.toLocaleString()} 条 · 国内走廊：${nCor.toLocaleString()} 条<br>` +
           `存储：${DataStore.mode === 'idb' ? 'IndexedDB（本机浏览器）'
@@ -4448,10 +4590,21 @@ const UI = (function () {
     // ==================== 阶段 2：A* 多方案 ====================
     await Scanner.start('engine');
     const tEngine = performance.now();
-    const multi = PathFinder.searchMultiple(
-      graph, startRef, goalRef, strategy, fix.correctedFL, WANTED_PLANS, SEARCH_BUDGET_MS);
+    // v9：先严格搜（与 v8.7 完全一致），无解才放开高度带。
+    let multi = PathFinder.searchMultiple(
+      graph, startRef, goalRef, strategy, fix.correctedFL, WANTED_PLANS, SEARCH_BUDGET_MS, false);
+    let relaxed = false;
+    if (!multi.plans.length) {
+      const soft = PathFinder.searchMultiple(
+        graph, startRef, goalRef, strategy, fix.correctedFL, WANTED_PLANS, SEARCH_BUDGET_MS, true);
+      if (soft.plans.length) {
+        multi = soft;
+        relaxed = true;
+        console.info(`[v9] FL${fix.correctedFL} 严格高度无解，已放宽高度带：${soft.plans.length} 条方案`);
+      }
+    }
     await Scanner.finish('engine', performance.now() - tEngine,
-                         multi.plans.length + ' 方案');
+                         multi.plans.length + ' 方案' + (relaxed ? '（放宽）' : ''));
 
     // 引擎最优距离作为基准；走廊推荐若远超它就不值得展示
     const bestEngineNM = multi.plans.length
@@ -4481,7 +4634,7 @@ const UI = (function () {
     let usedFallback = false;
 
     if (!res) {
-      // 最近层无解 → 按次近层回退，并在每个候选层上同样产出多方案
+      // 同一高度层严格 + 放宽都无解 → 按次近层回退，并在每个候选层上同样产出多方案
       const fb = PathFinder.searchWithFallback(graph, startRef, goalRef, strategy,
                                               levelList, startIdx >= 0 ? startIdx : 0, 5);
       for (const a of fb.attempts) tried.push(a);
@@ -4490,11 +4643,10 @@ const UI = (function () {
         await Scanner.finish('level', null, '无可行层');
         await Scanner.close();
         out.innerHTML = banner('bad',
-          `无法在高度层 ${listText} 上找到符合高度限制的航路。`,
-          `<div class="list"><div>已尝试 ${fb.attempts.length} 个候选层（跳高/跳低交替）。</div>` +
-          `<div>提示：本工具只使用「航段允许高度范围」覆盖巡航高度的航路，` +
-          `因此低空段不会被用于高空巡航。</div>` +
-          `<div>请检查起降机场是否通过航路连通，或调整巡航高度。</div></div>`);
+          `在高度层 ${listText} 上两机场都不连通。`,
+          `<div class="list"><div>已尝试 ${fb.attempts.length} 个候选层（跳高/跳低交替），并已放开航段高度带。</div>` +
+          `<div>v9 起高度限制不再直接判死：同一层找不到合规航路时会放宽并标注越界段。</div>` +
+          `<div>现在仍无解，说明起降机场之间的 ATS 航路网确实断开，请检查导航数据是否完整。</div></div>`);
         return;
       }
       usedFallback = true;
@@ -4507,8 +4659,13 @@ const UI = (function () {
         reason: `最近层 ${fix.correctedShown} 无符合高度限制的航路，已回退到次近层 ${shown}。`,
         outOfRange: false, dir, mode: modeId
       };
-      const multi2 = PathFinder.searchMultiple(
-        graph, startRef, goalRef, strategy, fl, WANTED_PLANS, SEARCH_BUDGET_MS);
+      let multi2 = PathFinder.searchMultiple(
+        graph, startRef, goalRef, strategy, fl, WANTED_PLANS, SEARCH_BUDGET_MS, false);
+      if (!multi2.plans.length) {
+        const soft2 = PathFinder.searchMultiple(
+          graph, startRef, goalRef, strategy, fl, WANTED_PLANS, SEARCH_BUDGET_MS, true);
+        if (soft2.plans.length) { multi2 = soft2; relaxed = true; }
+      }
       res = multi2.plans[0] || null;
       if (!res) {
         await Scanner.close();
@@ -4516,6 +4673,8 @@ const UI = (function () {
         return;
       }
       multi.plans = multi2.plans;
+      multi.capped = multi2.capped;
+      multi.capReason = multi2.capReason;
     }
 
     // ==================== 阶段 4：高度层合规校验 ====================
@@ -4525,7 +4684,8 @@ const UI = (function () {
       graph, res, strategy, cruise, fix: usedLevel, usedFallback, tried,
       trackOverall, dir, from, to, buildMs, levelList,
       plans: multi.plans, searchMs: multi.totalMs, searchTries: multi.tries,
-      wanted: WANTED_PLANS, officialPlans
+      wanted: WANTED_PLANS, officialPlans, relaxed,
+      capped: !!multi.capped, capReason: multi.capReason || ''
     };
     render();
     const nMixed = (officialPlans.length + multi.plans.length);
@@ -4778,8 +4938,10 @@ const UI = (function () {
     }
 
     // ==================== 来源 B：国内走廊匹配 ====================
-    // CAAC 表没有 Z→Z 航线，但其中的航段序列真实穿越中国空域，
-    // 用它们作为国内城市对的「官方走廊推荐」。
+    // CAAC 四张表没有 Z→Z 航线，早先靠「航段序列反推的走廊」给国内城市对凑官方推荐。
+    // v9.1：走廊只在「这对机场确实有 CAAC 官方航路」时才作为补充候选保留。
+    // 国内→国内、国外→国外本来就没有官方航路，直接走引擎，不再让走廊参与（几何上容易绕）。
+    if (out.length) {
     const corridors = OfficialRoutes.findDomesticCorridors(originIcao, destIcao, 6);
     for (const c of corridors) {
       const r = {
@@ -4824,6 +4986,7 @@ const UI = (function () {
 
       pushPlan(assemble(segs, Object.assign({ source: 'DOMESTIC_CORRIDOR', corridor: c }, r), problems));
     }
+    }   // 走廊候选结束（没有官方航路时整段跳过）
 
     // 按距离排序
     out.sort((a, b) => a.distNM - b.distNM);
@@ -5020,12 +5183,25 @@ const UI = (function () {
     return kinds[plan.official.kind] || plan.official.kind;
   }
 
+  /* ---------------- v9：越界航段说明 ---------------- */
+  function levelBandShort(s) {
+    const lo = s.minFL === 0 ? 'GND' : 'FL' + s.minFL;
+    const hi = s.maxFL >= 600 ? '不限' : 'FL' + s.maxFL;
+    return `${lo}–${hi}`;
+  }
+  function segViolationNote(segs) {
+    const list = (segs || []).slice(0, 4).map((s) =>
+      `${esc(s.fromId)}→${esc(s.toId)}${s.awy && s.awy !== 'DCT' ? ' ' + esc(s.awy) : ''}（${levelBandShort(s)}）`);
+    return list.join('、') + ((segs || []).length > 4 ? ` 等 ${segs.length} 段` : '');
+  }
+
   function render() {
     const { graph, strategy, cruise, fix, usedFallback, tried, from, to, dir,
             searchMs, wanted } = last;
-    // 搜索顺序是"探索顺序"，与距离不完全一致；按实际距离重排，
-    // 保证第 1 条就是真正最短的那条（"最优"标签才名副其实）。
-    const plans = [...last.plans].sort((a, b) => a.distNM - b.distNM);
+    // 搜索顺序是"探索顺序"，与距离不完全一致；按「是否越界 → 实际距离」重排：
+    // v9 放宽高度后可能混进越界方案，不能让它们抢在完全合规的方案前面。
+    const plans = [...last.plans].sort((a, b) =>
+      (a.violations ? 1 : 0) - (b.violations ? 1 : 0) || a.distNM - b.distNM);
     last.plans = plans;
     const out = $('out');
 
@@ -5033,7 +5209,7 @@ const UI = (function () {
 
     // ---- 高度提示 ----
     // 用户已从合法层列表中直接选择，正常情况下无需"修正"；
-    // 仅当次近层回退发生时才提示。
+    // 仅当次近层回退 / 高度放宽发生时才提示。
     const dirCn = dir === 'EAST' ? '东向' : '西向';
     const planShown = fix.correctedShown;
     const planFL = fix.correctedFL;
@@ -5042,6 +5218,12 @@ const UI = (function () {
       html += banner('warn',
         `已使用次近层：${bothUnits}（${dirCn}）。`,
         `<div class="list"><div>原因：${esc(fix.reason)}</div></div>`);
+    } else if (last.relaxed) {
+      html += banner('warn',
+        `巡航高度层 ${bothUnits}（${dirCn}）· 已放宽航段高度带。`,
+        `<div class="list">` +
+        `<div>该层上找不到「每一段都覆盖巡航高度」的航路，已按「越界最少」放宽约束（参考 Little Navmap：先给航线，再标注）。</div>` +
+        `<div>越界航段在方案卡片里单独列出；换一个巡航高度通常就能拿到完全合规的方案。</div></div>`);
     } else {
       html += banner('ok', `巡航高度层 ${bothUnits} · ${dirCn}可用层，符合 ${strategy.label}。`);
     }
@@ -5052,6 +5234,7 @@ const UI = (function () {
       <div class="rt">${esc(from.icao)} <span class="arw">→</span> ${esc(to.icao)}</div>
       <div class="kv">巡航高度层 <b>${esc(planShown)}</b>（FL${planFL}）</div>
       <div class="kv">方案数 <b>${plans.length}</b> / ${wanted}</div>
+      ${plans.some((p) => p.violations) ? `<div class="kv">完全合规 <b>${plans.filter((p) => !p.violations).length}</b> / ${plans.length}</div>` : ''}
       <div class="kv">最优 <b>${best.distNM.toFixed(0)} NM</b></div>
       <span class="mode ${strategy.id}">${esc(strategy.label)}</span>
       <div class="kv">搜索耗时 <b>${(searchMs / 1000).toFixed(2)} s</b></div>
@@ -5060,7 +5243,18 @@ const UI = (function () {
     // ---- 方案卡片列表（CAAC 官方航路置顶）----
     const offs = last.officialPlans || [];
     const offOk = offs.filter((p) => p.violations === 0);
-    html += `<div class="card"><div class="ch">航路方案（官方 ${offs.length} 条 · 引擎 ${plans.length} 条）
+    // v9：备选方案有 25% 绕行上限，被舍弃时明说，不假装「只有这么多方案」
+    const capText = last.capReason === 'duplicate'
+      ? '没有更多差异明显的备选，已按实际条数列出'
+      : last.capReason === 'budget'
+        ? '搜索预算用尽，只列出已找到的方案'
+        : '其余备选绕行超 25%，已舍弃';
+    const cappedNote = (last.capped && plans.length < wanted)
+      ? `<span class="pcont warn" style="margin-left:8px">${capText}</span>` : '';
+    // v9.1：国内→国内 / 国外→国外没有 CAAC 官方航路，也不再用走廊凑数，界面上说清楚
+    const noOfficialNote = offs.length === 0
+      ? `<span class="pcont" style="margin-left:8px">无 CAAC 官方航路 · 仅引擎方案</span>` : '';
+    html += `<div class="card"><div class="ch">航路方案（官方 ${offs.length} 条 · 引擎 ${plans.length} 条）${noOfficialNote}${cappedNote}
       <span class="right"><span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--dim)">
       点击展开</span></span></div>
       <div class="plans">`;
@@ -5100,7 +5294,8 @@ const UI = (function () {
     plans.forEach((p, i) => {
       const pSegs = p.segs.map((s) => Object.assign({}, s, { dir: Geo.directionOf(s.trk) }));
       const pRoute = buildRouteString(pSegs, from.icao, to.icao, strategy);
-      const bad = pSegs.filter((s) => !s.terminal && !(s.minFL <= planFL && planFL <= s.maxFL)).length;
+      const badSegs = pSegs.filter((s) => !s.terminal && !(s.minFL <= planFL && planFL <= s.maxFL));
+      const bad = badSegs.length;
       const dctN = pSegs.filter((s) => s.type === 'DCT').length;
       const awys = [...new Set(pSegs.map((s) => s.awy).filter((x) => x !== 'DCT'))];
       const delta = p.distNM - best.distNM;
@@ -5113,25 +5308,31 @@ const UI = (function () {
           <span class="pmeta">${pSegs.length} 段 · ${awys.length} 航路${dctN ? ' · DCT ' + dctN : ''}</span>
           ${delta > 0.5 ? `<span class="pdelta">+${delta.toFixed(0)} NM</span>` : ''}
           ${pSegs.some((s) => s.terminal) ? '<span class="pcont">含起降爬升/下降段</span>' : ''}
-          <span class="pok ${bad === 0 ? 'y' : 'x'}">${bad === 0 ? '✓ 高度合规' : '✗ ' + bad + ' 段越界'}</span>
+          <span class="pok ${bad === 0 ? 'y' : 'x'}">${bad === 0 ? '✓ 高度合规' : '⚠ ' + bad + ' 段越界'}</span>
           <button type="button" class="pcopy" data-copy="eng${i}" title="复制此航路串">复制</button>
         </div>
         <pre class="proute" id="route-eng${i}">${highlight(pRoute, from.icao, to.icao)}</pre>
+        ${bad ? `<div class="plev">巡航 FL${planFL} 不在以下航段的高度范围内，飞行前请复核：${segViolationNote(badSegs)}</div>` : ''}
       </div>`;
     });
 
-    // 3) 官方航路但高度不合规（单独列出，不掩盖）
+    // 3) 官方航路但高度不合规（不再只留一句话，路线照样给出）
     offs.filter((p) => p.violations > 0).forEach((p, i) => {
-      const kinds = { OUT: '出境', IN: '入境', OVERFLY: '飞越', REGIONAL: '地区' };
+      const pSegs = p.segs.map((s) => Object.assign({}, s, { dir: Geo.directionOf(s.trk) }));
+      const pRoute = buildOfficialRouteString(p, from.icao, to.icao);
+      const badSegs = pSegs.filter((s) => !s.terminal && !(s.minFL <= planFL && planFL <= s.maxFL));
       html += `<div class="plan official bad" data-plan="offbad${i}">
         <div class="ph">
           <span class="pidx off">★</span>
           <span class="pofficial">CAAC 官方航路</span>
           <span class="pcode">${esc(p.official.code)}</span>
           <span class="pdist">${p.distNM.toFixed(0)} NM</span>
-          <span class="pok x">✗ ${p.violations} 段高度越界</span>
+          <span class="pmeta">${pSegs.length} 段</span>
+          <span class="pok x">⚠ ${p.violations} 段越界</span>
+          <button type="button" class="pcopy" data-copy="offbad${i}" title="复制此航路串">复制</button>
         </div>
-        <pre class="proute">（该官方航路部分航段的高度范围不覆盖 FL${planFL}，未作为可用方案）</pre>
+        <pre class="proute" id="route-offbad${i}">${highlight(pRoute, from.icao, to.icao)}</pre>
+        <div class="plev">巡航 FL${planFL} 不在以下航段的高度范围内，飞行前请复核：${segViolationNote(badSegs)}</div>
       </div>`;
     });
     html += `</div></div>`;
@@ -5212,20 +5413,26 @@ const UI = (function () {
       const g = GraphBuilder.build(DATASET, strat);
       const sr = g.keyOf(from.icao), gr = g.keyOf(to.icao);
       if (!g.nodes[sr] || !g.nodes[gr]) { rows.push({ id, strat, fail: '机场未接入', fx }); continue; }
-      const r = PathFinder.search(g, sr, gr, strat, fx.correctedFL);
+      let r = PathFinder.search(g, sr, gr, strat, fx.correctedFL);
+      let cmpRelaxed = false;
+      if (!r.ok) {
+        const relaxedTry = PathFinder.search(g, sr, gr, strat, fx.correctedFL, true);
+        if (relaxedTry.ok) { r = relaxedTry; cmpRelaxed = true; }
+      }
       if (!r.ok) { rows.push({ id, strat, fail: r.reason, fx }); continue; }
       const hasDct = r.segs.some((s) => s.type === 'DCT');
       rows.push({
         id, strat, fx, dist: r.distNM,
         nSeg: r.segs.length,
         nAwy: new Set(r.segs.map((s) => s.awy).filter((x) => x !== 'DCT')).size,
-        hasDct,
+        hasDct, relaxed: cmpRelaxed, violations: r.violations,
         route: buildRouteString(r.segs.map((s) => Object.assign({}, s)), from.icao, to.icao, strat)
       });
     }
     const cell = (r, key) => {
       if (r.fail) return `<span class="v">—</span>`;
-      if (key === 'level') return `<span class="v">${esc(r.fx.correctedShown)} (FL${r.fx.correctedFL})</span>`;
+      if (key === 'level') return `<span class="v">${esc(r.fx.correctedShown)} (FL${r.fx.correctedFL})` +
+        (r.relaxed ? `<br><span style="color:var(--warn)">放宽高度</span>` : '') + `</span>`;
       if (key === 'dist') return `<span class="v">${r.dist.toFixed(1)} NM</span>`;
       if (key === 'dct') return `<span class="v">${r.hasDct ? '是' : '否'}</span>`;
       if (key === 'segs') return `<span class="v">${r.nSeg} 段 / ${r.nAwy} 航路</span>`;
