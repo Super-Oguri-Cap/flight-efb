@@ -18,11 +18,12 @@ android {
         applicationId = "com.oguricap.efb"
         minSdk = 34
         targetSdk = 36
-        // 1.3.12：修导入 zip 报「数据不可用」、导入失败丢掉旧数据集；
-        //         检查单分类可收起、自定义检查单可导出/导入分享；
-        //         去掉重复的系统栏留白（标题离刘海太远、内容离底栏太高）
-        versionCode = 19
-        versionName = "1.3.12"
+        // 1.3.13：网页工具升级——航路生成器 v8.6→v9.2（走廊只在有 CAAC 官方航路时
+        //         作候选、cycle.json 按 AIRAC 元数据显示不标红、旧缓存标签洗数）；
+        //         油量计算器 V7→V9（页面自带跨平台自定义下拉与 ZFW 直接展示，
+        //         App 皮肤自动让位；data-URI 命名空间转义以符合单文件自包含契约）
+        versionCode = 20
+        versionName = "1.3.13"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
