@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>航路生成器 v9.0</title>
+<title>航路生成器 v9.1</title>
 <style>
 :root{
   --bg:#0f141a; --panel:#1a212b; --panel2:#141a22; --line:#2a3441;
@@ -515,7 +515,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
 <body>
 
 <div id="toolbar">
-  <div class="brand"><span class="dot"></span>航路生成器<small>v9.0</small></div>
+  <div class="brand"><span class="dot"></span>航路生成器<small>v9.1</small></div>
   <span id="dataTag" title="当前数据源">数据加载中…</span>
   <button id="btnTheme" title="切换白天 / 黑夜">☀️</button>
   <button id="btnData" title="导入 / 管理导航数据">数据管理</button>
@@ -601,7 +601,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
   <div class="mbox">
     <div class="mhead">
       <span class="t">数据管理</span>
-      <span class="hint2" style="margin-left:6px">v9.0 · 不带任何第三方导航数据，数据由你导入</span>
+      <span class="hint2" style="margin-left:6px">v9.1 · 不带任何第三方导航数据，数据由你导入</span>
       <button class="x" id="dclose" title="关闭 (Esc)">✕</button>
     </div>
 
@@ -3766,7 +3766,7 @@ const UI = (function () {
     $('out').innerHTML = `<div class="emptycard">
       <div class="ic">✈</div>
       <h2>先导入导航数据</h2>
-      <p>v9.0 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
+      <p>v9.1 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
       <div class="steps">
         <div>1. 打开 X-Plane 12 的 <b>Custom Data</b> 文件夹，找 <b>earth_fix.dat</b> + <b>earth_awy.dat</b>（必需）</div>
         <div>2. 再找 <b>apt.dat</b>：在 <b>Global Scenery\\Global Airports\\Earth nav data</b> 下</div>
@@ -4925,8 +4925,10 @@ const UI = (function () {
     }
 
     // ==================== 来源 B：国内走廊匹配 ====================
-    // CAAC 表没有 Z→Z 航线，但其中的航段序列真实穿越中国空域，
-    // 用它们作为国内城市对的「官方走廊推荐」。
+    // CAAC 四张表没有 Z→Z 航线，早先靠「航段序列反推的走廊」给国内城市对凑官方推荐。
+    // v9.1：走廊只在「这对机场确实有 CAAC 官方航路」时才作为补充候选保留。
+    // 国内→国内、国外→国外本来就没有官方航路，直接走引擎，不再让走廊参与（几何上容易绕）。
+    if (out.length) {
     const corridors = OfficialRoutes.findDomesticCorridors(originIcao, destIcao, 6);
     for (const c of corridors) {
       const r = {
@@ -4971,6 +4973,7 @@ const UI = (function () {
 
       pushPlan(assemble(segs, Object.assign({ source: 'DOMESTIC_CORRIDOR', corridor: c }, r), problems));
     }
+    }   // 走廊候选结束（没有官方航路时整段跳过）
 
     // 按距离排序
     out.sort((a, b) => a.distNM - b.distNM);
@@ -5235,7 +5238,10 @@ const UI = (function () {
         : '其余备选绕行超 25%，已舍弃';
     const cappedNote = (last.capped && plans.length < wanted)
       ? `<span class="pcont warn" style="margin-left:8px">${capText}</span>` : '';
-    html += `<div class="card"><div class="ch">航路方案（官方 ${offs.length} 条 · 引擎 ${plans.length} 条）${cappedNote}
+    // v9.1：国内→国内 / 国外→国外没有 CAAC 官方航路，也不再用走廊凑数，界面上说清楚
+    const noOfficialNote = offs.length === 0
+      ? `<span class="pcont" style="margin-left:8px">无 CAAC 官方航路 · 仅引擎方案</span>` : '';
+    html += `<div class="card"><div class="ch">航路方案（官方 ${offs.length} 条 · 引擎 ${plans.length} 条）${noOfficialNote}${cappedNote}
       <span class="right"><span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--dim)">
       点击展开</span></span></div>
       <div class="plans">`;
