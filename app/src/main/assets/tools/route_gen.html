@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>航路生成器 v9.1</title>
+<title>航路生成器 v9.2</title>
 <style>
 :root{
   --bg:#0f141a; --panel:#1a212b; --panel2:#141a22; --line:#2a3441;
@@ -515,7 +515,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
 <body>
 
 <div id="toolbar">
-  <div class="brand"><span class="dot"></span>航路生成器<small>v9.1</small></div>
+  <div class="brand"><span class="dot"></span>航路生成器<small>v9.2</small></div>
   <span id="dataTag" title="当前数据源">数据加载中…</span>
   <button id="btnTheme" title="切换白天 / 黑夜">☀️</button>
   <button id="btnData" title="导入 / 管理导航数据">数据管理</button>
@@ -601,7 +601,7 @@ html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shado
   <div class="mbox">
     <div class="mhead">
       <span class="t">数据管理</span>
-      <span class="hint2" style="margin-left:6px">v9.1 · 不带任何第三方导航数据，数据由你导入</span>
+      <span class="hint2" style="margin-left:6px">v9.2 · 不带任何第三方导航数据，数据由你导入</span>
       <button class="x" id="dclose" title="关闭 (Esc)">✕</button>
     </div>
 
@@ -3260,6 +3260,13 @@ const NavParser = (function () {
         provider = providerLabel(j.manufacturerShort || j.manufacturerLong || j.provider || '');
       } catch (e) { /* ignore */ }
     }
+    // v9.2：cycle.json 只用来取 AIRAC 周期 / 厂商，不是「航路条目」。
+    // 它本来就没有「条数」可数，按 0 条标红会让人以为文件坏了 → 单独标成已识别。
+    const cycleInfo = info.find((x) => x.kind === 'cycle');
+    if (cycleInfo) {
+      cycleInfo.noCount = true;
+      cycleInfo.note = cycle ? `AIRAC ${cycle}` : '已读取';
+    }
     if (airportSource) console.log('[机场] 来源：' + airportSource + ' · ' + airports.length + ' 个');
 
     return {
@@ -3766,7 +3773,7 @@ const UI = (function () {
     $('out').innerHTML = `<div class="emptycard">
       <div class="ic">✈</div>
       <h2>先导入导航数据</h2>
-      <p>v9.1 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
+      <p>v9.2 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
       <div class="steps">
         <div>1. 打开 X-Plane 12 的 <b>Custom Data</b> 文件夹，找 <b>earth_fix.dat</b> + <b>earth_awy.dat</b>（必需）</div>
         <div>2. 再找 <b>apt.dat</b>：在 <b>Global Scenery\\Global Airports\\Earth nav data</b> 下</div>
@@ -3858,9 +3865,15 @@ const UI = (function () {
       if (kind === 'skip') {
         cls = 'skip'; sub = 'dimc';
       } else if (infoMap.has(f.name)) {
-        const n = infoMap.get(f.name).parsed || 0;
-        if (n > 0) { cls = 'ok'; sub = 'okc'; extra = ` · ${n.toLocaleString()} 条`; }
-        else { cls = 'bad'; sub = 'badc'; extra = ' · 解析失败 0 条'; }
+        const it = infoMap.get(f.name);
+        if (it.noCount) {
+          // v9.2：cycle.json 这类元数据文件没有「条数」，显示「AIRAC 2611 · 已识别」，不标红
+          cls = 'ok'; sub = 'okc'; extra = ` · ${it.note || '已读取'}`;
+        } else {
+          const n = it.parsed || 0;
+          if (n > 0) { cls = 'ok'; sub = 'okc'; extra = ` · ${n.toLocaleString()} 条`; }
+          else { cls = 'bad'; sub = 'badc'; extra = ' · 解析失败 0 条'; }
+        }
       } else if (kind && kind !== 'other' && kind !== 'dat') {
         cls = 'ok'; sub = 'okc';                   // 还没解析，只表示文件类型认出来了
       } else {
