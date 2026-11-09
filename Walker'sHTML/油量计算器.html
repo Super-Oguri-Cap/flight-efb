@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 飞行油量计算器 V6 · 版号仅内置代码，不在页面显示 · ZFW 直接展示 -->
+<!-- 飞行油量计算器 V7 · 版号仅内置代码，不在页面显示 · 支持日间/夜间模式 · ZFW 直接展示 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -12,6 +12,13 @@
     --txt:#e6eef7; --muted:#8ba0b8; --accent:#22d3ee;
     --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
   }
+  /* ===== 日间模式（light）变量覆盖 ===== */
+  html[data-theme="light"]{
+    color-scheme: light;
+    --bg:#eef2f7; --panel:#ffffff; --panel2:#f3f6fa; --line:#d5dee8;
+    --txt:#1a2532; --muted:#5c6e84; --accent:#0e94a8;
+    --ok:#059669; --warn:#c2740a; --bad:#dc2626;
+  }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
@@ -19,19 +26,45 @@
     background:radial-gradient(1200px 600px at 15% -10%, #14303e 0%, transparent 60%),
                radial-gradient(900px 500px at 92% 0%, #1b2743 0%, transparent 55%), var(--bg);
     color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+    transition:background .25s, color .25s;
+  }
+  html[data-theme="light"] body{
+    background:radial-gradient(1200px 600px at 15% -10%, #d8ecf3 0%, transparent 60%),
+               radial-gradient(900px 500px at 92% 0%, #e2e8f5 0%, transparent 55%), var(--bg);
   }
   .wrap{max-width:1240px;margin:0 auto;padding:28px 20px 60px}
   .hero{margin-bottom:22px}
+  .hero-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .hero-text{min-width:0;flex:1 1 auto}
   .hero h1{font-size:clamp(22px,3.4vw,32px);margin:0 0 8px;
     background:linear-gradient(90deg,#e6eef7 0%,#7dd3fc 60%,#22d3ee 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.5px}
+  html[data-theme="light"] .hero h1{
+    background:linear-gradient(90deg,#0f172a 0%,#0369a1 60%,#0e94a8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
   .hero p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
+  .theme-toggle{
+    display:inline-flex;align-items:center;gap:6px;flex-shrink:0;
+    padding:8px 14px;border-radius:999px;cursor:pointer;
+    background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    font-size:12.5px;font-family:inherit;font-weight:600;
+    transition:.15s;line-height:1;
+  }
+  .theme-toggle:hover{border-color:rgba(34,211,238,.5);color:var(--accent)}
+  html[data-theme="light"] .theme-toggle:hover{border-color:rgba(14,148,168,.6);color:var(--accent)}
+  .theme-toggle:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(34,211,238,.22);border-color:rgba(34,211,238,.7)}
+  .theme-toggle span#themeIcon{font-size:14px}
   .layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;align-items:start}
   @media (max-width:1000px){ .layout{grid-template-columns:1fr} }
   .col{display:flex;flex-direction:column;gap:16px;min-width:0}
   .card{background:linear-gradient(180deg,var(--panel) 0%, #121a24 100%);
     border:1px solid var(--line);border-radius:16px;padding:18px 20px;
-    box-shadow:0 10px 30px rgba(0,0,0,.28)}
+    box-shadow:0 10px 30px rgba(0,0,0,.28);transition:background .25s, border-color .25s}
+  html[data-theme="light"] .card{
+    background:linear-gradient(180deg,#ffffff 0%, #f8fafc 100%);
+    box-shadow:0 8px 24px rgba(15,35,60,.08);
+  }
   .card-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;
     margin:0 0 14px;letter-spacing:.02em;color:var(--txt);line-height:1.35}
   .card-title .num{font-size:11px;font-weight:700;color:#04141c;background:var(--accent);
@@ -43,12 +76,18 @@
   .field input,.field select{width:100%;padding:9px 11px;border-radius:9px;
     background:var(--panel2);border:1px solid var(--line);color:var(--txt);
     font-size:14px;font-variant-numeric:tabular-nums;outline:none;
-    transition:border-color .15s, box-shadow .15s}
+    transition:border-color .15s, box-shadow .15s, background .25s, color .25s}
   .field input:focus,.field select:focus{border-color:rgba(34,211,238,.7);
     box-shadow:0 0 0 3px rgba(34,211,238,.13)}
+  html[data-theme="light"] .field input:focus,
+  html[data-theme="light"] .field select:focus{
+    border-color:rgba(14,148,168,.8);box-shadow:0 0 0 3px rgba(14,148,168,.15);
+  }
   .field input:disabled{opacity:.42;cursor:not-allowed}
   .field .hint{font-size:11px;color:#668097;line-height:1.45}
+  html[data-theme="light"] .field .hint{color:#7b8a9c}
   .field .hint.warn-text{color:#fca5a5;font-weight:600}
+  html[data-theme="light"] .field .hint.warn-text{color:#b91c1c}
   .zfw-total{
     padding:12px 16px;border-radius:11px;
     background:linear-gradient(150deg,rgba(34,211,238,.16),rgba(56,189,248,.03));
@@ -56,67 +95,116 @@
     font-size:clamp(22px,2.8vw,27px);font-weight:800;color:#a5f3fc;
     font-variant-numeric:tabular-nums;letter-spacing:-.3px;
     display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
+    transition:background .25s, border-color .25s, color .25s;
   }
   .zfw-total small{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+  html[data-theme="light"] .zfw-total{
+    background:linear-gradient(150deg,rgba(14,148,168,.12),rgba(56,189,248,.03));
+    border-color:rgba(14,148,168,.32);
+    color:#0e7490;
+  }
   .checkline{display:flex;align-items:center;gap:10px;grid-column:1/-1;
     background:var(--panel2);border:1px solid var(--line);border-radius:9px;
-    padding:10px 12px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
+    padding:10px 12px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none;
+    transition:background .25s, border-color .25s}
   .checkline input{width:16px;height:16px;accent-color:#22d3ee;cursor:pointer;flex:0 0 auto}
+  html[data-theme="light"] .checkline input{accent-color:#0e94a8}
   .checkline span{line-height:1.45}
   .acinfo{margin-top:14px}
   .acinfo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media (max-width:560px){ .acinfo-grid{grid-template-columns:1fr} }
   .acinfo-item{background:linear-gradient(160deg,rgba(34,211,238,.10),rgba(34,211,238,.02));
-    border:1px solid rgba(34,211,238,.22);border-radius:11px;padding:11px 13px;min-width:0}
+    border:1px solid rgba(34,211,238,.22);border-radius:11px;padding:11px 13px;min-width:0;
+    transition:background .25s, border-color .25s}
+  html[data-theme="light"] .acinfo-item{
+    background:linear-gradient(160deg,rgba(14,148,168,.09),rgba(14,148,168,.02));
+    border-color:rgba(14,148,168,.28);
+  }
   .acinfo-item span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
   .acinfo-item strong{display:block;font-size:17px;font-variant-numeric:tabular-nums;
     color:#bae6fd;overflow-wrap:anywhere}
+  html[data-theme="light"] .acinfo-item strong{color:#0e7490}
   .acinfo-item strong.pending{font-size:14px;color:var(--warn)}
   .acinfo-item em{font-style:normal;font-size:12px;color:var(--muted)}
   .acinfo-oew{margin-top:10px;padding:9px 12px;border-radius:9px;
     background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);
-    font-size:12px;color:#bae6fd;line-height:1.55}
+    font-size:12px;color:#bae6fd;line-height:1.55;
+    transition:background .25s, border-color .25s, color .25s}
+  html[data-theme="light"] .acinfo-oew{
+    background:rgba(14,148,168,.07);border-color:rgba(14,148,168,.22);color:#0e7490;
+  }
   .acinfo-oew strong{color:#a5f3fc;font-variant-numeric:tabular-nums}
+  html[data-theme="light"] .acinfo-oew strong{color:#0e7490}
   .acinfo-oew.pending strong{color:var(--warn)}
   .acinfo-note{margin-top:10px;font-size:12px;color:#fcd34d;background:rgba(251,191,36,.08);
-    border:1px solid rgba(251,191,36,.25);border-radius:9px;padding:8px 11px;line-height:1.5}
+    border:1px solid rgba(251,191,36,.25);border-radius:9px;padding:8px 11px;line-height:1.5;
+    transition:background .25s, border-color .25s, color .25s}
+  html[data-theme="light"] .acinfo-note{
+    color:#92400e;background:rgba(251,191,36,.14);border-color:rgba(194,116,10,.3);
+  }
   .acinfo-note.danger{color:#fecaca;background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25)}
+  html[data-theme="light"] .acinfo-note.danger{
+    color:#991b1b;background:rgba(220,38,38,.09);border-color:rgba(220,38,38,.3);
+  }
   .acinfo-source{margin-top:9px;font-size:11px;color:#668097;line-height:1.5}
+  html[data-theme="light"] .acinfo-source{color:#7b8a9c}
   .result-card{position:sticky;top:20px}
   @media (max-width:1000px){ .result-card{position:static} }
   .alert{border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:12.5px;line-height:1.5;
-    border:1px solid var(--line)}
+    border:1px solid var(--line);transition:background .25s, border-color .25s, color .25s}
   .alert.warn{color:#fde68a;background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.32)}
+  html[data-theme="light"] .alert.warn{
+    color:#92400e;background:rgba(251,191,36,.15);border-color:rgba(194,116,10,.35);
+  }
   .alert.bad{color:#fecaca;background:rgba(248,113,113,.09);border-color:rgba(248,113,113,.42)}
+  html[data-theme="light"] .alert.bad{
+    color:#991b1b;background:rgba(220,38,38,.09);border-color:rgba(220,38,38,.36);
+  }
   .alert.info{color:#bae6fd;background:rgba(34,211,238,.07);border-color:rgba(34,211,238,.28)}
+  html[data-theme="light"] .alert.info{
+    color:#0e7490;background:rgba(14,148,168,.09);border-color:rgba(14,148,168,.3);
+  }
   .total-box{background:linear-gradient(150deg,rgba(34,211,238,.14),rgba(56,189,248,.03));
-    border:1px solid rgba(34,211,238,.28);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+    border:1px solid rgba(34,211,238,.28);border-radius:14px;padding:16px 18px;margin-bottom:16px;
+    transition:background .25s, border-color .25s}
+  html[data-theme="light"] .total-box{
+    background:linear-gradient(150deg,rgba(14,148,168,.12),rgba(56,189,248,.03));
+    border-color:rgba(14,148,168,.32);
+  }
   .total-box .lbl{font-size:12px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px}
   .total-box .big{font-size:clamp(30px,5vw,40px);font-weight:800;letter-spacing:-1px;
     font-variant-numeric:tabular-nums;color:#a5f3fc;line-height:1.1;overflow-wrap:anywhere}
+  html[data-theme="light"] .total-box .big{color:#0e7490}
   .total-box .big small{font-size:15px;font-weight:600;color:var(--muted);margin-left:4px}
   .total-box .sub{margin-top:6px;font-size:12.5px;color:var(--muted);
     font-variant-numeric:tabular-nums;line-height:1.55}
   .stack{display:flex;height:12px;border-radius:7px;overflow:hidden;background:#0d151e;
-    margin:14px 0 16px;border:1px solid var(--line)}
+    margin:14px 0 16px;border:1px solid var(--line);transition:background .25s}
+  html[data-theme="light"] .stack{background:#e3eaf2}
   .stack > div{min-width:3px;transition:flex-grow .2s}
   .items{display:flex;flex-direction:column;gap:2px}
   .item{display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;gap:10px;
-    align-items:center;padding:9px 4px;border-bottom:1px dashed rgba(37,54,74,.75);font-size:13.5px}
+    align-items:center;padding:9px 4px;border-bottom:1px dashed rgba(37,54,74,.75);font-size:13.5px;
+    transition:border-color .25s}
+  html[data-theme="light"] .item{border-bottom-color:rgba(180,195,212,.7)}
   .item:last-child{border-bottom:none}
   .dot{width:9px;height:9px;border-radius:3px}
   .item .name{color:var(--txt);min-width:0}
   .item .name small{display:block;color:var(--muted);font-size:11px;margin-top:1px;line-height:1.35}
   .item .val{font-variant-numeric:tabular-nums;font-weight:600;color:#dbeafe;white-space:nowrap}
+  html[data-theme="light"] .item .val{color:#1e3a5f}
   .item .pct{font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted);
     min-width:44px;text-align:right}
   .section-sub{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:20px 0 10px;
     padding-top:14px;border-top:1px solid var(--line);text-transform:uppercase;font-weight:700}
   .gauge{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
-    padding:12px 14px;margin-bottom:10px}
+    padding:12px 14px;margin-bottom:10px;transition:background .25s, border-color .25s}
   .gauge.ok{border-color:rgba(52,211,153,.35)}
   .gauge.warn{border-color:rgba(251,191,36,.45)}
   .gauge.bad{border-color:rgba(248,113,113,.55)}
+  html[data-theme="light"] .gauge.ok{border-color:rgba(5,150,105,.4)}
+  html[data-theme="light"] .gauge.warn{border-color:rgba(194,116,10,.45)}
+  html[data-theme="light"] .gauge.bad{border-color:rgba(220,38,38,.5)}
   .gauge-head{display:flex;justify-content:space-between;align-items:center;gap:10px;
     font-size:13px;margin-bottom:7px}
   .gauge-head > span:first-child{font-weight:600}
@@ -125,10 +213,15 @@
   .gauge.ok .badge{background:rgba(52,211,153,.16);color:var(--ok)}
   .gauge.warn .badge{background:rgba(251,191,36,.16);color:var(--warn)}
   .gauge.bad .badge{background:rgba(248,113,113,.16);color:var(--bad)}
+  html[data-theme="light"] .gauge.ok .badge{background:rgba(5,150,105,.13)}
+  html[data-theme="light"] .gauge.warn .badge{background:rgba(194,116,10,.14)}
+  html[data-theme="light"] .gauge.bad .badge{background:rgba(220,38,38,.14)}
   .gauge-val{font-size:15px;font-variant-numeric:tabular-nums;margin-bottom:8px}
   .gauge-val small{font-size:11px;color:var(--muted)}
   .gauge-val .sep{color:var(--muted);margin:0 6px}
-  .gauge-bar{height:8px;border-radius:5px;background:#0d151e;overflow:hidden;border:1px solid var(--line)}
+  .gauge-bar{height:8px;border-radius:5px;background:#0d151e;overflow:hidden;border:1px solid var(--line);
+    transition:background .25s}
+  html[data-theme="light"] .gauge-bar{background:#e3eaf2}
   .gauge-bar > div{height:100%;border-radius:5px;transition:width .25s}
   .gauge.ok .gauge-bar > div{background:linear-gradient(90deg,#0ea5a0,#34d399);box-shadow:0 0 10px rgba(52,211,153,.28)}
   .gauge.warn .gauge-bar > div{background:linear-gradient(90deg,#d97706,#fbbf24);box-shadow:0 0 10px rgba(251,191,36,.26)}
@@ -136,20 +229,39 @@
   .gauge-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
     font-size:11.5px;color:var(--muted);margin-top:7px;font-variant-numeric:tabular-nums}
   .gauge-foot b{color:#dbeafe;font-weight:600}
+  html[data-theme="light"] .gauge-foot b{color:#1e3a5f}
   .data-note{font-size:11.5px;color:#fcd34d;background:rgba(251,191,36,.06);
     border:1px dashed rgba(251,191,36,.25);border-radius:9px;padding:8px 10px;
-    line-height:1.5;margin-top:2px}
+    line-height:1.5;margin-top:2px;transition:background .25s, border-color .25s, color .25s}
+  html[data-theme="light"] .data-note{
+    color:#92400e;background:rgba(251,191,36,.12);border-color:rgba(194,116,10,.3);
+  }
   .conclusion{margin-top:14px;border-radius:11px;padding:12px 14px;font-size:13.5px;
-    font-weight:600;line-height:1.55}
+    font-weight:600;line-height:1.55;transition:background .25s, border-color .25s, color .25s}
   .conclusion.ok{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.35);color:#a7f3d0}
   .conclusion.warn{background:rgba(251,191,36,.09);border:1px solid rgba(251,191,36,.32);color:#fde68a}
   .conclusion.bad{background:rgba(248,113,113,.10);border:1px solid rgba(248,113,113,.42);color:#fecaca}
   .conclusion.idle{background:rgba(139,160,184,.08);border:1px solid var(--line);
     color:var(--muted);font-weight:500}
+  html[data-theme="light"] .conclusion.ok{
+    color:#065f46;background:rgba(5,150,105,.10);border-color:rgba(5,150,105,.35);
+  }
+  html[data-theme="light"] .conclusion.warn{
+    color:#92400e;background:rgba(194,116,10,.10);border-color:rgba(194,116,10,.32);
+  }
+  html[data-theme="light"] .conclusion.bad{
+    color:#991b1b;background:rgba(220,38,38,.10);border-color:rgba(220,38,38,.4);
+  }
+  html[data-theme="light"] .conclusion.idle{
+    background:rgba(139,160,184,.12);color:#475569;
+  }
   .assumptions{margin-top:14px;border:1px solid var(--line);border-radius:10px;
-    background:rgba(13,21,30,.45);font-size:12px;color:var(--muted)}
+    background:rgba(13,21,30,.45);font-size:12px;color:var(--muted);
+    transition:background .25s, border-color .25s}
+  html[data-theme="light"] .assumptions{background:rgba(241,245,249,.75)}
   .assumptions summary{cursor:pointer;padding:9px 12px;color:#bae6fd;font-weight:600;
     list-style-position:inside;outline:none}
+  html[data-theme="light"] .assumptions summary{color:#0e7490}
   .assumptions summary:focus-visible{box-shadow:0 0 0 3px rgba(34,211,238,.18);border-radius:10px}
   .assumptions ul{margin:0;padding:0 14px 11px 30px;line-height:1.6}
   .assumptions li{margin:3px 0}
@@ -157,17 +269,22 @@
     background:var(--panel2);border:1px solid var(--line);color:var(--muted);
     font-size:13px;transition:.15s;font-family:inherit}
   .btn:hover{border-color:rgba(34,211,238,.5);color:var(--accent)}
+  html[data-theme="light"] .btn:hover{border-color:rgba(14,148,168,.6);color:var(--accent)}
   .btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(34,211,238,.18);
     border-color:rgba(34,211,238,.7)}
   .foot{margin-top:26px;font-size:11.5px;color:#6f849b;line-height:1.7;
     border-top:1px solid var(--line);padding-top:16px}
+  html[data-theme="light"] .foot{color:#64748b}
   .foot b{color:#9db1c6}
+  html[data-theme="light"] .foot b{color:#334155}
   .foot p{margin:0 0 8px}
   @media print{
     :root{color-scheme:light}
+    html[data-theme], html[data-theme="light"]{color-scheme:light}
     body{background:#fff;color:#111}
+    html[data-theme="light"] body{background:#fff}
     .wrap{max-width:none;padding:0}
-    .btn{display:none!important}
+    .btn,.theme-toggle{display:none!important}
     .layout{display:block}
     .card{background:#fff;border-color:#bbb;box-shadow:none;break-inside:avoid;margin-bottom:14px}
     .hero h1{color:#111;-webkit-text-fill-color:#111;background:none}
@@ -191,8 +308,16 @@
 <div class="wrap">
 
   <header class="hero">
-    <h1>飞行油量计算器</h1>
-    <p>按 CAAC / FAA / EASA 三套口径计算最低放行油量，并校核机型重量与载油限制</p>
+    <div class="hero-row">
+      <div class="hero-text">
+        <h1>飞行油量计算器</h1>
+        <p>按 CAAC / FAA / EASA 三套口径计算最低放行油量，并校核机型重量与载油限制</p>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换日间 / 夜间模式">
+        <span id="themeIcon" aria-hidden="true">☀️</span>
+        <span id="themeLabel">日间</span>
+      </button>
+    </div>
   </header>
 
   <div class="layout">
@@ -355,7 +480,7 @@
 'use strict';
 
 /* 版本号仅内置在代码中，不渲染到页面。 */
-const APP_VERSION = 'V6';
+const APP_VERSION = 'V7';
 
 /* =========================================================
    规章配置
@@ -394,7 +519,7 @@ const REGIMES = {
 };
 
 /* =========================================================
-   机型数据库（含 oew 字段）
+   机型数据库（含 oew 字段；名称中已去掉「货机」「客改货」后缀）
    ========================================================= */
 const AIRCRAFT_GROUPS = [
   {
@@ -414,14 +539,14 @@ const AIRCRAFT_GROUPS = [
       { name:"空客 A330-300", mtow:242000, mlw:187000, mzfw:175000, oew:129400, fuelCapacity:109000, cruiseFF:5800, tas:470, holdFF:2300, taxiFF:620, applicable121:true, category:"运输类", source:"Airbus A330-300 公开规格；OEW 为典型值。" },
       { name:"空客 A330-800neo", mtow:251000, mlw:186000, mzfw:176000, oew:132000, fuelCapacity:111000, cruiseFF:5700, tas:470, holdFF:2250, taxiFF:610, applicable121:true, category:"运输类", source:"Airbus A330-800neo 公开规格；OEW 为典型值。" },
       { name:"空客 A330-900neo", mtow:251000, mlw:191000, mzfw:181000, oew:137000, fuelCapacity:111000, cruiseFF:5900, tas:470, holdFF:2350, taxiFF:630, applicable121:true, category:"运输类", source:"Airbus A330-900 公开规格；OEW 为典型值。" },
-      { name:"空客 A330-200F（货机）", mtow:233000, mlw:182000, mzfw:178000, oew:109000, fuelCapacity:78000, cruiseFF:5600, tas:470, holdFF:2250, taxiFF:610, applicable121:true, category:"货机", note:"原厂货机，最大业载约 65–70 t。ZFW = 空机 + 业载。", source:"Airbus A330-200F 公开规格；OEW 为含货机改装典型值。" },
+      { name:"空客 A330-200F", mtow:233000, mlw:182000, mzfw:178000, oew:109000, fuelCapacity:78000, cruiseFF:5600, tas:470, holdFF:2250, taxiFF:610, applicable121:true, category:"货机", note:"原厂货机，最大业载约 65–70 t。ZFW = 空机 + 业载。", source:"Airbus A330-200F 公开规格；OEW 为含货机改装典型值。" },
       { name:"空客 A340-300", mtow:276500, mlw:192000, mzfw:183000, oew:129000, fuelCapacity:115400, cruiseFF:7200, tas:480, holdFF:2800, taxiFF:780, applicable121:true, category:"运输类", source:"Airbus A340-300 公开规格；OEW 为典型值。" },
       { name:"空客 A340-600", mtow:380000, mlw:265000, mzfw:256000, oew:177000, fuelCapacity:160500, cruiseFF:8600, tas:480, holdFF:3200, taxiFF:850, applicable121:true, category:"运输类", note:"四发远程客机。", source:"Airbus A340-600 公开规格；OEW 为典型值。" },
       { name:"空客 A350-900", mtow:283000, mlw:207000, mzfw:195700, oew:142400, fuelCapacity:141400, cruiseFF:6400, tas:490, holdFF:2500, taxiFF:650, applicable121:true, category:"运输类", source:"Airbus A350-900 公开规格；OEW 为典型值。" },
       { name:"空客 A350-1000", mtow:324000, mlw:236000, mzfw:223000, oew:155000, fuelCapacity:143000, cruiseFF:7200, tas:490, holdFF:2800, taxiFF:700, applicable121:true, category:"运输类", source:"Airbus A350-1000 公开规格；OEW 为典型值。" },
       { name:"空客 A380-800", mtow:575000, mlw:394000, mzfw:361000, oew:276800, fuelCapacity:254000, cruiseFF:11000, tas:490, holdFF:4200, taxiFF:1200, applicable121:true, category:"运输类", note:"四发超大型客机。", source:"Airbus A380 公开规格；OEW 为典型值。" },
-      { name:"空客 A320P2F（客改货）", mtow:78000, mlw:66000, mzfw:62500, oew:43000, fuelCapacity:21384, cruiseFF:2400, tas:450, holdFF:1050, taxiFF:350, applicable121:true, category:"货机", note:"A320 客改货，最大业载约 21 t。ZFW = 空机 + 业载。", source:"Airbus A320P2F 公开规格；OEW 为含货机改装典型值。" },
-      { name:"空客 A321P2F（客改货）", mtow:93500, mlw:77800, mzfw:73800, oew:49000, fuelCapacity:21384, cruiseFF:2900, tas:450, holdFF:1250, taxiFF:380, applicable121:true, category:"货机", note:"A321 客改货，最大业载约 28 t。ZFW = 空机 + 业载。", source:"Airbus A321P2F 公开规格；OEW 为含货机改装典型值。" }
+      { name:"空客 A320P2F", mtow:78000, mlw:66000, mzfw:62500, oew:43000, fuelCapacity:21384, cruiseFF:2400, tas:450, holdFF:1050, taxiFF:350, applicable121:true, category:"货机", note:"A320 客改货，最大业载约 21 t。ZFW = 空机 + 业载。", source:"Airbus A320P2F 公开规格；OEW 为含货机改装典型值。" },
+      { name:"空客 A321P2F", mtow:93500, mlw:77800, mzfw:73800, oew:49000, fuelCapacity:21384, cruiseFF:2900, tas:450, holdFF:1250, taxiFF:380, applicable121:true, category:"货机", note:"A321 客改货，最大业载约 28 t。ZFW = 空机 + 业载。", source:"Airbus A321P2F 公开规格；OEW 为含货机改装典型值。" }
     ]
   },
   {
@@ -434,21 +559,21 @@ const AIRCRAFT_GROUPS = [
       { name:"波音 737-8 MAX", mtow:82191, mlw:69308, mzfw:64325, oew:45070, fuelCapacity:20700, cruiseFF:2500, tas:450, holdFF:1100, taxiFF:340, applicable121:true, category:"运输类", source:"Boeing 737 MAX 8 公开规格；OEW 为典型值。" },
       { name:"波音 737-9 MAX", mtow:88314, mlw:74228, mzfw:68463, oew:46720, fuelCapacity:20700, cruiseFF:2600, tas:450, holdFF:1150, taxiFF:350, applicable121:true, category:"运输类", source:"Boeing 737 MAX 9 公开规格；OEW 为典型值。" },
       { name:"波音 737-10 MAX", mtow:89765, mlw:78300, mzfw:71750, oew:48600, fuelCapacity:20700, cruiseFF:2700, tas:450, holdFF:1200, taxiFF:360, applicable121:true, category:"运输类", source:"Boeing 737 MAX 10 公开规格；OEW 为典型值。" },
-      { name:"波音 737-800BCF（客改货）", mtow:79015, mlw:66360, mzfw:62731, oew:42000, fuelCapacity:20894, cruiseFF:2500, tas:450, holdFF:1100, taxiFF:330, applicable121:true, category:"货机", note:"737-800 客改货。ZFW = 空机 + 业载。", source:"Boeing 737-800BCF 公开规格；OEW 为含货机改装典型值。" },
+      { name:"波音 737-800BCF", mtow:79015, mlw:66360, mzfw:62731, oew:42000, fuelCapacity:20894, cruiseFF:2500, tas:450, holdFF:1100, taxiFF:330, applicable121:true, category:"货机", note:"737-800 客改货。ZFW = 空机 + 业载。", source:"Boeing 737-800BCF 公开规格；OEW 为含货机改装典型值。" },
       { name:"波音 747-400", mtow:396893, mlw:295742, mzfw:251744, oew:178756, fuelCapacity:170000, cruiseFF:10500, tas:480, holdFF:4000, taxiFF:950, applicable121:true, category:"运输类", source:"Boeing 747-400 公开规格；OEW 为典型值。" },
       { name:"波音 747-400ER", mtow:412770, mlw:302092, mzfw:276691, oew:181000, fuelCapacity:180000, cruiseFF:10700, tas:480, holdFF:4100, taxiFF:970, applicable121:true, category:"运输类", source:"Boeing 747-400ER 公开规格；OEW 为典型值。" },
-      { name:"波音 747-400F（货机）", mtow:396893, mlw:302092, mzfw:276691, oew:167000, fuelCapacity:170000, cruiseFF:10500, tas:480, holdFF:4000, taxiFF:950, applicable121:true, category:"货机", note:"747-400 原厂货机，最大业载约 113 t。ZFW = 空机 + 业载。", source:"Boeing 747-400F 公开规格；OEW 为含货机改装典型值。" },
+      { name:"波音 747-400F", mtow:396893, mlw:302092, mzfw:276691, oew:167000, fuelCapacity:170000, cruiseFF:10500, tas:480, holdFF:4000, taxiFF:950, applicable121:true, category:"货机", note:"747-400 原厂货机，最大业载约 113 t。ZFW = 空机 + 业载。", source:"Boeing 747-400F 公开规格；OEW 为含货机改装典型值。" },
       { name:"波音 747-8", mtow:447700, mlw:334750, mzfw:295290, oew:220128, fuelCapacity:190900, cruiseFF:11000, tas:480, holdFF:4200, taxiFF:1000, applicable121:true, category:"运输类", note:"按 747-8I 公开规格校正 MTOW / MLW / MZFW。", source:"Boeing 747-8 公开规格；OEW 为典型值。" },
-      { name:"波音 747-8F（货机）", mtow:447700, mlw:346091, mzfw:327000, oew:220128, fuelCapacity:190900, cruiseFF:11200, tas:480, holdFF:4300, taxiFF:1000, applicable121:true, category:"货机", note:"747-8 原厂货机，最大业载约 137 t。", source:"Boeing 747-8F 公开规格；OEW 为含货机改装典型值。" },
+      { name:"波音 747-8F", mtow:447700, mlw:346091, mzfw:327000, oew:220128, fuelCapacity:190900, cruiseFF:11200, tas:480, holdFF:4300, taxiFF:1000, applicable121:true, category:"货机", note:"747-8 原厂货机，最大业载约 137 t。", source:"Boeing 747-8F 公开规格；OEW 为含货机改装典型值。" },
       { name:"波音 757-200", mtow:115680, mlw:89800, mzfw:83450, oew:58390, fuelCapacity:34800, cruiseFF:3400, tas:460, holdFF:1450, taxiFF:420, applicable121:true, category:"运输类", source:"Boeing 757-200 公开规格；OEW 为典型值。" },
       { name:"波音 757-300", mtow:122470, mlw:101600, mzfw:95250, oew:64590, fuelCapacity:34400, cruiseFF:3600, tas:460, holdFF:1500, taxiFF:430, applicable121:true, category:"运输类", source:"Boeing 757-300 公开规格；OEW 为典型值。" },
       { name:"波音 767-300ER", mtow:186880, mlw:145150, mzfw:130635, oew:86069, fuelCapacity:73500, cruiseFF:4800, tas:470, holdFF:1900, taxiFF:530, applicable121:true, category:"运输类", source:"Boeing 767-300ER 公开规格；OEW 为典型值。" },
-      { name:"波音 767-300BCF（客改货）", mtow:186880, mlw:145150, mzfw:130635, oew:87000, fuelCapacity:73500, cruiseFF:4800, tas:470, holdFF:1900, taxiFF:530, applicable121:true, category:"货机", note:"767-300ER 客改货，最大载重约 56.5 t。ZFW = 空机 + 业载。", source:"Boeing 767-300BCF 公开规格；OEW 为含货机改装典型值。" },
+      { name:"波音 767-300BCF", mtow:186880, mlw:145150, mzfw:130635, oew:87000, fuelCapacity:73500, cruiseFF:4800, tas:470, holdFF:1900, taxiFF:530, applicable121:true, category:"货机", note:"767-300ER 客改货，最大载重约 56.5 t。ZFW = 空机 + 业载。", source:"Boeing 767-300BCF 公开规格；OEW 为含货机改装典型值。" },
       { name:"波音 767-400ER", mtow:204117, mlw:158757, mzfw:149685, oew:103145, fuelCapacity:73500, cruiseFF:5000, tas:470, holdFF:1950, taxiFF:540, applicable121:true, category:"运输类", source:"Boeing 767-400ER 公开规格；OEW 为典型值。" },
       { name:"波音 777-200ER", mtow:298000, mlw:208600, mzfw:197300, oew:138100, fuelCapacity:137000, cruiseFF:7000, tas:480, holdFF:2800, taxiFF:720, applicable121:true, category:"运输类", source:"Boeing 777-200ER 公开规格；OEW 为典型值。" },
       { name:"波音 777-200LR", mtow:347500, mlw:223000, mzfw:209100, oew:145150, fuelCapacity:145000, cruiseFF:7200, tas:480, holdFF:2900, taxiFF:740, applicable121:true, category:"运输类", source:"Boeing 777-200LR 公开规格；OEW 为典型值。" },
       { name:"波音 777-300ER", mtow:351500, mlw:251000, mzfw:237700, oew:167829, fuelCapacity:145000, cruiseFF:7800, tas:480, holdFF:3100, taxiFF:760, applicable121:true, category:"运输类", source:"Boeing 777-300ER 公开规格；OEW 为典型值。" },
-      { name:"波音 777F（货机）", mtow:347814, mlw:260815, mzfw:248115, oew:144400, fuelCapacity:144000, cruiseFF:7600, tas:480, holdFF:3000, taxiFF:750, applicable121:true, category:"货机", note:"原厂货机，最大业载约 103.9 t。ZFW = 空机 + 业载。", source:"Boeing 777F 公开规格；OEW 为含货机改装典型值。" },
+      { name:"波音 777F", mtow:347814, mlw:260815, mzfw:248115, oew:144400, fuelCapacity:144000, cruiseFF:7600, tas:480, holdFF:3000, taxiFF:750, applicable121:true, category:"货机", note:"原厂货机，最大业载约 103.9 t。ZFW = 空机 + 业载。", source:"Boeing 777F 公开规格；OEW 为含货机改装典型值。" },
       { name:"波音 787-8", mtow:227950, mlw:172350, mzfw:161050, oew:119950, fuelCapacity:101000, cruiseFF:5600, tas:490, holdFF:2200, taxiFF:600, applicable121:true, category:"运输类", source:"Boeing 787-8 公开规格；OEW 为典型值。" },
       { name:"波音 787-9", mtow:254692, mlw:192777, mzfw:181436, oew:128850, fuelCapacity:101000, cruiseFF:6000, tas:490, holdFF:2350, taxiFF:620, applicable121:true, category:"运输类", source:"Boeing 787-9 公开规格；OEW 为典型值。" },
       { name:"波音 787-10", mtow:254000, mlw:201848, mzfw:192777, oew:135500, fuelCapacity:101000, cruiseFF:6200, tas:490, holdFF:2400, taxiFF:630, applicable121:true, category:"运输类", source:"Boeing 787-10 公开规格；OEW 为典型值。" }
@@ -509,6 +634,32 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/* ================= 主题切换 ================= */
+const THEME_KEY = 'fuelCalcTheme';
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light') {
+    root.setAttribute('data-theme', 'light');
+    $('themeIcon').textContent = '🌙';
+    $('themeLabel').textContent = '夜间';
+  } else {
+    root.removeAttribute('data-theme');
+    $('themeIcon').textContent = '☀️';
+    $('themeLabel').textContent = '日间';
+  }
+}
+function initTheme() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) {}
+  applyTheme(saved === 'light' ? 'light' : 'dark');
+  $('themeToggle').addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'dark' : 'light';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  });
+}
+
 /* ================= 初始化 ================= */
 let FLAT_AIRCRAFT = [];
 let eventsBound = false;
@@ -552,7 +703,6 @@ function applyAircraft() {
   $('holdFF').value = ac.holdFF;
   $('taxiFF').value = ac.taxiFF;
 
-  /* OEW 默认为机型典型值；业载按机型默认 ZFW 反推，不小于 0 */
   const oewDefault = ac.oew != null ? ac.oew : Math.round(ac.mtow * 0.5);
   $('oew').value = oewDefault;
 
@@ -997,18 +1147,21 @@ function runSelfTests() {
     check('EASA 不可预期 ≥ 航程油×5%', easa.cont >= easa.trip*0.05 - 0.01);
     check('EASA 最后储备 = 30 min', Math.abs(easa.finalR - 1050*30/60) < 0.01);
     check('A320neo 有 OEW 数据', a320.oew === 44300);
-    /* 派生 ZFW：OEW + 业载 */
     const derived = computeFuel({ ...base, zfw: undefined, oew:44300, payload:15700 }, a320);
     check('ZFW = OEW + 业载 派生', Math.abs(derived.tow - ccar.tow) < 0.01);
   } else check('找到 A320neo', false);
   const glider = FLAT_AIRCRAFT.find(ac => ac.zeroFuel === true);
   if (glider) check('零燃油机型 total=0', computeFuel(base, glider).total === 0);
   else check('找到零燃油机型', false);
+  /* 机型名称中不应再出现「货机」「客改货」 */
+  const hasSuffix = FLAT_AIRCRAFT.some(ac => /（货机）|（客改货）/.test(ac.name));
+  check('机型名称已去掉「货机」「客改货」后缀', !hasSuffix);
   const failed = results.filter(x => !x).length;
   console.info(`[自检] ${results.length-failed}/${results.length} 通过${failed?`，${failed} 项失败`:''}。`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initAircraftSelect();
   runSelfTests();
 });

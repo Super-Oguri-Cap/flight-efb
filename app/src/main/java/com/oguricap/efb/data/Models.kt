@@ -39,15 +39,20 @@ object ChartType {
     fun label(type: String): String = labels[type] ?: type
 }
 
+// uid 只在用户自己创建的检查单（id 以 custom_ 开头）里有值，用来给勾选进度做稳定键：
+// 用户可以随便重排阶段和条目，序号会变，uid 不变。
+// 内置数据（assets 里的 JSON）没有 uid，留空串，仍然用「阶段序号/条目序号」当键。
 data class ChecklistItem(
     val item: String,
     val state: String,
+    val uid: String = "",
 )
 
 data class ChecklistPhase(
     val name: String,
     val gloss: String,
     val items: List<ChecklistItem>,
+    val uid: String = "",
 )
 
 data class AircraftChecklist(
@@ -58,6 +63,7 @@ data class AircraftChecklist(
     val source: String,
     val license: String,
     val phases: List<ChecklistPhase>,
+    val uid: String = "",
 ) {
     val itemCount: Int get() = phases.sumOf { it.items.size }
 }
