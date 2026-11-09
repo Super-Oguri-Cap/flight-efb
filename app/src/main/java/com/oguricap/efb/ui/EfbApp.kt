@@ -213,6 +213,8 @@ fun EfbApp(
                         onToggleExclusive = { referenceVm.applyExclusivePhases(it) },
                         storageGranted = storageGranted,
                         onOpenSystemSettings = onRequestStorage,
+                        // 设置页里可以直接换目录，不必重跑整套引导
+                        onPickRoot = onPickRoot,
                         onRerunOnboarding = onRestartOnboarding,
                         onBack = { chartBack() },
                     )

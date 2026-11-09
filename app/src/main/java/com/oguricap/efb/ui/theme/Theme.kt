@@ -5,7 +5,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// 配色直接取自航路生成器页面（`Walker'sHTML/航路生成器_v8.4_无数据版.html` 的 :root）：
+// 配色直接取自航路生成器页面（`Walker'sHTML/航路生成器_v8.6_无数据版.html` 的 :root，
+// v8.4 → v8.6 深色变量未变，只多了一套 html[data-theme="light"]）：
 //   --bg #0f141a  --panel #1a212b  --panel2 #141a22  --line #2a3441
 //   --txt #d0dae6 --dim #7b8b9e    --accent #4a9eff
 //   --ok #3fd08a  --bad #e05c5c    --warn #e8b64a

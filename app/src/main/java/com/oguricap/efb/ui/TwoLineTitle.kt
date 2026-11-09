@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -28,6 +27,9 @@ import androidx.compose.ui.unit.dp
 // 下面那行说明就被裁掉一半（A319/A320/A321 正常检查单 这种长名字必现），
 // 系统字体调大后更明显。
 // 这里改成 heightIn(min = 64.dp)：内容有多高就撑多高，既不会裁字，短标题也不会变矮。
+//
+// **不再自己加 statusBarsPadding**：外层 EfbApp 的 Scaffold 已经按 systemBars 留过白，
+// 这里再加一次就是双倍 —— 表现是标题离刘海远出一整条状态栏。
 @Composable
 fun TwoLineTopBar(
     title: String,
@@ -41,7 +43,6 @@ fun TwoLineTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .heightIn(min = 64.dp)
                 .padding(end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

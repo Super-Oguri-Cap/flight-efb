@@ -1,7 +1,7 @@
 package com.oguricap.efb.ui.tools
 
 import android.content.Context
-import android.util.Log
+import com.oguricap.efb.diag.AppLog
 import org.json.JSONObject
 import java.security.MessageDigest
 
@@ -268,13 +268,13 @@ object ToolContract {
     fun logVersions(context: Context) {
         runCatching {
             val config = loadConfig(context)
-            Log.i(TAG, "bridgeVersion=${config.bridgeVersion} expected=$EXPECTED_BRIDGE_VERSION")
+            AppLog.i(TAG, "bridgeVersion=${config.bridgeVersion} expected=$EXPECTED_BRIDGE_VERSION")
             for (spec in config.tools.values) {
                 val raw = readAsset(context, spec.asset)
                 val ver = extractVersion(raw, spec)
-                Log.i(TAG, "${spec.asset} version=${ver.ifEmpty { "?" }} sha256=${sha256(raw)}")
+                AppLog.i(TAG, "${spec.asset} version=${ver.ifEmpty { "?" }} sha256=${sha256(raw)}")
             }
-        }.onFailure { Log.e(TAG, "读取工具资源失败", it) }
+        }.onFailure { AppLog.e(TAG, "读取工具资源失败", it) }
     }
 
     fun sha256(text: String): String {

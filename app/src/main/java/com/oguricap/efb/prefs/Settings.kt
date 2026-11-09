@@ -47,6 +47,14 @@ class Settings(context: Context) {
             prefs.edit().putString(KEY_ORIGIN, value).apply()
         }
 
+    // 运行日志与崩溃记录是否落盘。默认开：出问题时用户手上得有东西可导出，
+    // 而「先去打开日志开关再复现一次」对闪退类问题根本不成立。
+    var logEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LOG, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_LOG, value).apply()
+        }
+
     companion object {
         const val ORIGIN_ASSET = "asset"
         const val ORIGIN_SCAN = "scan"
@@ -57,5 +65,6 @@ class Settings(context: Context) {
         private const val KEY_ONBOARDING = "onboarding_done"
         private const val KEY_ORIGIN = "index_origin"
         private const val KEY_EXCLUSIVE = "exclusive_checklist_phases"
+        private const val KEY_LOG = "log_enabled"
     }
 }

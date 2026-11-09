@@ -3,6 +3,7 @@ package com.oguricap.efb.ui.qrh
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,8 +55,11 @@ fun QrhScreen(
     }
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0),
                 title = {
                     Column {
                         Text("QRH", fontWeight = FontWeight.Bold)
@@ -140,6 +144,8 @@ fun QrhSectionScreen(
     }
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TwoLineTopBar(
                 title = section?.title ?: sectionId,

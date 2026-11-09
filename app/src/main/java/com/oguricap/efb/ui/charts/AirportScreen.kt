@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -105,6 +106,8 @@ fun AirportScreen(
     val selectedCharts = selected.values.toList()
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责（TwoLineTopBar 也不再自带）
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TwoLineTopBar(
                 title = icao + "  " + (airport?.name ?: ""),

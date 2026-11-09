@@ -1,6 +1,7 @@
 package com.oguricap.efb.data
 
 import android.content.Context
+import com.oguricap.efb.diag.AppLog
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -43,7 +44,8 @@ class PinStore(context: Context) {
                     rwys = row.optString("rwys").split(SEP).filter { it.isNotBlank() },
                 )
             }
-        }.getOrDefault(emptyList())
+        }.onFailure { AppLog.w(TAG, "选中分组 ${kind.key} 解析失败，按空处理", it) }
+            .getOrDefault(emptyList())
     }
 
     fun save(kind: PinKind, charts: List<Chart>) {
@@ -65,6 +67,7 @@ class PinStore(context: Context) {
     }
 
     private companion object {
+        const val TAG = "EFB/PINS"
         const val PREFS = "efb_pins"
 
         // 跑道号里没有竖线，用它当分隔符不会跟数据撞

@@ -1,11 +1,13 @@
 package com.oguricap.efb.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.oguricap.efb.data.AircraftChecklist
 import com.oguricap.efb.data.ChecklistProgress
 import com.oguricap.efb.data.CustomChecklistStore
@@ -14,10 +16,16 @@ import com.oguricap.efb.data.QrhSection
 import com.oguricap.efb.data.ReferenceDoc
 import com.oguricap.efb.data.ReferenceDocs
 import com.oguricap.efb.data.ReferenceLibrary
+import com.oguricap.efb.diag.AppLog
 import com.oguricap.efb.prefs.Settings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
 
+    private val tag = "EFB/CHECKLIST"
     private val library = ReferenceLibrary.get(app)
     private val settings = Settings(app)
     private val progressStore = ChecklistProgress(app)
@@ -41,6 +49,31 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     // 分组互斥：开了以后一次只展开一个阶段
     var exclusivePhases: Boolean by mutableStateOf(settings.exclusiveChecklistPhases)
         private set
+
+    /**
+     * 列表页分类分组（空客 / 波音 / 其他）里被收起的那些。
+     *
+     * 存「收起的」而不是「展开的」：默认全展开，空集就是默认状态，
+     * 新增分类不用再维护一份初始展开列表。
+     */
+    var collapsedCategories: Set<String> by mutableStateOf(emptySet())
+        private set
+
+    /** 一次性提示（Snackbar），界面读走以后调 [consumeMessage] 清掉。 */
+    var message: String? by mutableStateOf(null)
+        private set
+
+    fun consumeMessage() {
+        message = null
+    }
+
+    fun toggleCategory(category: String) {
+        collapsedCategories = if (category in collapsedCategories) {
+            collapsedCategories - category
+        } else {
+            collapsedCategories + category
+        }
+    }
 
     fun aircraft(id: String): AircraftChecklist? = checklists.firstOrNull { it.id == id }
 
@@ -74,6 +107,66 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
         // 内存里那份进度缓存也一起丢掉，别留着占地方
         progress.remove(id)
         refreshCustom()
+    }
+
+    /**
+     * 把全部自定义检查单导出成一份 JSON，写到用户选定的位置。
+     *
+     * 用途是分享：对方拿到文件后走「导入」即可，不必再手工抄一遍条目。
+     * 格式带一层信封（`kind` / `version`），以后加字段时老版本还能认得出来。
+     */
+    fun exportCustom(uri: Uri) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val json = customStore.exportJson()
+                    val out = getApplication<Application>().contentResolver
+                        .openOutputStream(uri, "wt")
+                        ?: throw IOException("打不开所选位置，请换一个目录再试")
+                    out.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                    json.length
+                }
+            }
+            result.onSuccess { chars ->
+                AppLog.i(tag, "自定义检查单已导出：${customChecklists.size} 份 / $chars 字符")
+                message = "已导出 ${customChecklists.size} 份自定义检查单"
+            }.onFailure {
+                AppLog.e(tag, "导出自定义检查单失败", it)
+                message = "导出失败：" + (it.message ?: it.javaClass.simpleName)
+            }
+        }
+    }
+
+    /**
+     * 从用户选定的文件导入自定义检查单。
+     *
+     * 导入记录一律重新发 id 与 uid（见 [CustomChecklistStore.importJson]）：
+     * 沿用对方的 id 会和自己已有的副本撞车，沿用 uid 会让两份副本共用勾选进度。
+     */
+    fun importCustom(uri: Uri) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val text = getApplication<Application>().contentResolver
+                        .openInputStream(uri)
+                        ?.use { it.reader(Charsets.UTF_8).readText() }
+                        ?: throw IOException("打不开这个文件")
+                    customStore.importJson(text)
+                }
+            }
+            result.onSuccess { report ->
+                refreshCustom()
+                AppLog.i(tag, "自定义检查单导入：新增 ${report.added}，跳过 ${report.skipped}")
+                message = when {
+                    report.added == 0 -> "没有可导入的检查单（跳过 ${report.skipped} 条）"
+                    report.skipped == 0 -> "已导入 ${report.added} 份自定义检查单"
+                    else -> "已导入 ${report.added} 份，跳过 ${report.skipped} 条损坏记录"
+                }
+            }.onFailure {
+                AppLog.e(tag, "导入自定义检查单失败", it)
+                message = "导入失败：" + (it.message ?: it.javaClass.simpleName)
+            }
+        }
     }
 
     fun togglePhase(name: String) {

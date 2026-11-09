@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,6 +57,8 @@ fun CustomChecklistEditorScreen(
     if (checklist == null) {
         // 从别处删掉了或者 id 失效，别留一个空白页
         Scaffold(
+            // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责
+            contentWindowInsets = WindowInsets(0),
             topBar = { TwoLineTopBar(title = "自定义检查单", subtitle = "", onBack = onBack) },
         ) { padding ->
             Text("这份检查单已不存在", modifier = Modifier.padding(padding).padding(16.dp))
@@ -72,6 +75,8 @@ fun CustomChecklistEditorScreen(
     }
 
     Scaffold(
+        // 系统栏留白由外层 EfbApp 的 Scaffold 统一负责
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TwoLineTopBar(
                 title = checklist.name.ifBlank { "自定义检查单" },

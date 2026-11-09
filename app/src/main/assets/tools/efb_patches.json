@@ -59,7 +59,7 @@
         }
       ],
       "runtime": {
-        "distanceJs": "(()=>{var el=document.getElementById('dist');if(!el)return false;el.value=String(__NM__);el.dispatchEvent(new Event('input',{bubbles:true}));if(typeof calc==='function')calc();return true;})()"
+        "distanceJs": "(()=>{var el=document.getElementById('dist');if(!el)return false;var v=String(__NM__);el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));if(typeof calc==='function')calc();return String(el.value)===v;})()"
       }
     }
   }

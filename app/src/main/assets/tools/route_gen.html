@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>航路生成器 v8.4 · 自备导航数据 · 无 DCT 航路 · 国内走廊推荐</title>
+<title>航路生成器 v8.6</title>
 <style>
 :root{
   --bg:#0f141a; --panel:#1a212b; --panel2:#141a22; --line:#2a3441;
@@ -370,14 +370,150 @@ details.cmp[open] summary{border-bottom:1px solid var(--line);color:var(--txt)}
 #navStatus .yes{color:var(--ok)}
 #navStatus .no{color:var(--bad)}
 #navStatus .dim{color:var(--dim)}
+
+/* ================= v8.6 白天模式 ================= */
+html[data-theme="light"]{
+  --bg:#eef2f7; --panel:#ffffff; --panel2:#f4f7fb; --line:#d5dde8;
+  --txt:#1b2836; --dim:#5d6f84; --accent:#1f6fd0;
+  --east:#1f6fd0; --west:#a6631a; --ok:#16855a; --bad:#c33c3c; --warn:#9a6b16;
+}
+html[data-theme="light"] #toolbar{background:#fff}
+html[data-theme="light"] #sidebar{background:#fff}
+html[data-theme="light"] button{background:#f4f7fb;border-color:var(--line);color:var(--txt)}
+html[data-theme="light"] button:hover:not(:disabled){background:#e9eff7;border-color:#b9c7d8}
+html[data-theme="light"] button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+html[data-theme="light"] input[type=text],html[data-theme="light"] input[type=number],html[data-theme="light"] select{background:#fff;color:var(--txt)}
+html[data-theme="light"] input::placeholder{color:#93a3b5}
+html[data-theme="light"] .levelwheel{background:#f7f9fc}
+html[data-theme="light"] .lw-item.lw-cur{color:#0f1c2b;background:linear-gradient(90deg,transparent,#e3ebf6,transparent)}
+html[data-theme="light"] .lw-item.lw-cur .lw-m{color:#0f1c2b}
+html[data-theme="light"] .lw-item.lw-prev,html[data-theme="light"] .lw-item.lw-next{color:#8b9bad}
+html[data-theme="light"] .lw-btn{background:#fff;border-color:var(--line);color:var(--dim)}
+html[data-theme="light"] .lw-btn:hover{background:#eef3fa;color:#0f1c2b}
+html[data-theme="light"] .chip b{color:var(--accent)}
+html[data-theme="light"] .plan{background:#fff}
+html[data-theme="light"] .plan:hover{background:#f6f9fd;border-color:#b9c7d8}
+html[data-theme="light"] .plan.open{background:#eef5ff;border-color:var(--accent)}
+html[data-theme="light"] .plan .pidx{background:#e3ebf6;color:#3c5471}
+html[data-theme="light"] .plan.open .pidx,html[data-theme="light"] .plan:nth-child(1) .pidx{background:var(--accent);color:#fff}
+html[data-theme="light"] .plan .pbest{background:#e8f7ef;border-color:#b7e2cb;color:var(--ok)}
+html[data-theme="light"] .plan.official{background:#fffaf0;border-color:#e7d6b3}
+html[data-theme="light"] .plan.official:hover{background:#fff5e2;border-color:#d8be8a}
+html[data-theme="light"] .plan.official.corridor{background:#f3f8ff;border-color:#c9dcf2}
+html[data-theme="light"] .plan.official.corridor:hover{background:#eaf3ff;border-color:#a9c6e6}
+html[data-theme="light"] .plan.official.corridor .pidx.off{background:#3f7fb5;color:#fff}
+html[data-theme="light"] .plan.official.corridor .pofficial{color:#2f6ea8;border-color:#c9dcf2;background:#eaf3ff}
+html[data-theme="light"] .plan .pidx.off{background:var(--warn);color:#fff}
+html[data-theme="light"] .plan .pofficial{color:#8a5c10;border-color:#e7d6b3;background:#fdf3df}
+html[data-theme="light"] .plan .pengine{color:#2f6ea8;border-color:#c9dcf2;background:#eaf3ff}
+html[data-theme="light"] .plan .pcode{color:#8a5c10}
+html[data-theme="light"] .plan .pcont{color:#5f7085}
+html[data-theme="light"] .plan .pcopy{background:#f4f7fb;border-color:var(--line);color:var(--dim)}
+html[data-theme="light"] .plan .pcopy:hover{background:#e9eff7;color:#0f1c2b}
+html[data-theme="light"] .plan .pcopy.copied{background:#e8f7ef;border-color:#b7e2cb;color:var(--ok)}
+html[data-theme="light"] .plan .pdist{color:#0f1c2b}
+html[data-theme="light"] .plan .proute{color:#33475e}
+html[data-theme="light"] .plan .proute .apt{color:#0b1220}
+html[data-theme="light"] .plan .proute .dct{color:#93a3b5}
+html[data-theme="light"] .radio-group label{background:#f7f9fc}
+html[data-theme="light"] .radio-group label:has(input:checked){background:#e6f0fc;color:#12406e;border-color:var(--accent)}
+html[data-theme="light"] .hint{color:#6b7c90}
+html[data-theme="light"] .placeholder .big{color:#5d6f84}
+html[data-theme="light"] .overview{background:#fff}
+html[data-theme="light"] .overview .rt{color:#0f1c2b}
+html[data-theme="light"] .overview .mode.CHINA{background:#fdf3df;border-color:#e7d6b3;color:#8a5c10}
+html[data-theme="light"] .overview .mode.ICAO{background:#e8f7ef;border-color:#b7e2cb;color:var(--ok)}
+html[data-theme="light"] .dcttag{background:#e6f0fc;border-color:#c9dcf2;color:#1f6fd0}
+html[data-theme="light"] .dcttag.no{background:#eef2f7;border-color:var(--line);color:var(--dim)}
+html[data-theme="light"] .card{background:#fff}
+html[data-theme="light"] pre.route{background:#f6f8fb;color:#1b2836}
+html[data-theme="light"] pre.route .apt{color:#0b1220}
+html[data-theme="light"] thead th{background:#eef2f7}
+html[data-theme="light"] tbody td{border-color:#e6ecf3}
+html[data-theme="light"] tbody tr.bad{background:#fdeeee}
+html[data-theme="light"] tbody td.fix{color:#0f1c2b}
+html[data-theme="light"] .dir.EAST{background:#e6f0fc;border-color:#c9dcf2;color:#1f6fd0}
+html[data-theme="light"] .dir.WEST{background:#fdf3df;border-color:#e7d6b3;color:#8a5c10}
+html[data-theme="light"] .banner.ok{background:#e9f8f0;border-color:#b7e2cb;color:#0f7a4f}
+html[data-theme="light"] .banner.bad{background:#fdeeee;border-color:#f0c2c2;color:#b73333}
+html[data-theme="light"] .banner.warn{background:#fff7e6;border-color:#f0dcb0;color:#8a5c10}
+html[data-theme="light"] .banner code{background:#00000010}
+html[data-theme="light"] .cmpgrid > div{border-color:#e6ecf3}
+html[data-theme="light"] .cmpgrid .hd{background:#eef2f7}
+html[data-theme="light"] .loadbar{background:var(--bg)}
+html[data-theme="light"] .loadbar .bar{background:#dde5ef}
+html[data-theme="light"] .scanner{background:rgba(226,234,244,.72)}
+html[data-theme="light"] .scan-box{background:#fff;border-color:var(--line);box-shadow:0 24px 60px #0b101722}
+html[data-theme="light"] .scan-title{color:#0f1c2b}
+html[data-theme="light"] .scan-track{background:linear-gradient(180deg,#f3f7fc,#e9eff7);border-color:#d5dde8}
+html[data-theme="light"] .scan-steps li{color:#8496a9}
+html[data-theme="light"] .scan-steps li.run{color:#33475e}
+html[data-theme="light"] .scan-steps li.ok{color:#4a5f78}
+html[data-theme="light"] .scan-steps li em{color:#8496a9}
+html[data-theme="light"] .scan-bar{background:#e3ebf6}
+html[data-theme="light"] .modal{background:rgba(15,20,26,.42)}
+html[data-theme="light"] .mbox{background:#fff;border-color:var(--line);box-shadow:0 26px 70px #0b101733}
+html[data-theme="light"] .tab{color:#6b7c90}
+html[data-theme="light"] .tab.on{color:#0f1c2b}
+html[data-theme="light"] .drop{background:#f7f9fc;border-color:#c3cfdd;color:#6b7c90}
+html[data-theme="light"] .drop b{color:#0f1c2b}
+html[data-theme="light"] .ditem{background:#f7f9fc}
+html[data-theme="light"] .ditem.ok{background:#eefaf3;border-color:#b7e2cb}
+html[data-theme="light"] .ditem.bad{background:#fdeeee;border-color:#f0c2c2}
+html[data-theme="light"] .ditem.skip{background:#f4f7fb;border-color:var(--line)}
+html[data-theme="light"] .dstat .cell{background:#f7f9fc}
+html[data-theme="light"] .dstat .v{color:#0f1c2b}
+html[data-theme="light"] .reqrow{background:#f7f9fc}
+html[data-theme="light"] .reqrow b{color:#22303f}
+html[data-theme="light"] .warnbox{background:#fff7e6;border-color:#f0dcb0;color:#8a5c10}
+html[data-theme="light"] .warnbox.bad{background:#fdeeee;border-color:#f0c2c2;color:#b73333}
+html[data-theme="light"] .infobox{background:#f7f9fc;border-color:var(--line);color:#5d6f84}
+html[data-theme="light"] .infobox code,html[data-theme="light"] .hint2 code{background:#eef2f7;border-color:#dde5ef;color:#2f6ea8}
+html[data-theme="light"] .emptycard{background:#fff;border-color:var(--line);box-shadow:0 18px 50px #0b101714}
+html[data-theme="light"] .emptycard .steps b{color:#0f1c2b}
+html[data-theme="light"] #dataTag{background:#f4f7fb;border-color:var(--line);color:#5d6f84}
+html[data-theme="light"] #dataTag.user{background:#e8f7ef;border-color:#b7e2cb;color:#0f7a4f}
+html[data-theme="light"] #dataTag.missing{background:#fff7e6;border-color:#f0dcb0;color:#8a5c10}
+html[data-theme="light"] .suggest{background:#fff;border-color:#d5dde8;box-shadow:0 10px 26px #0b10171a}
+
+/* ================= v8.6 手机适配 ================= */
+@media(max-width:640px){
+  #toolbar{height:auto;flex-wrap:wrap;gap:8px;padding:8px 10px}
+  #toolbar .brand{flex:1 1 100%;margin-right:0;font-size:14.5px}
+  #toolbar button{height:34px;padding:0 10px;font-size:12px}
+  #dataTag{order:3;font-size:10.5px}
+  #sidebar{width:100%;padding:12px 12px 20px}
+  #results{padding:12px 10px 28px}
+  .sect{margin-bottom:16px}
+  .modal{padding:0}
+  .mbox{width:100%;height:100%;max-height:100%;border-radius:0;border:0}
+  .mhead{padding:12px}
+  .tabs{overflow-x:auto}
+  .tab{padding:10px;font-size:12px;white-space:nowrap}
+  .mbody{padding:12px}
+  .dstat{grid-template-columns:repeat(2,1fr)}
+  .reqrow{flex-wrap:wrap;gap:6px}
+  .reqrow b{min-width:0}
+  .plan .ph{gap:7px;padding:8px 10px}
+  .plan .proute{padding:0 10px 9px}
+  pre.route{font-size:12px;padding:11px 12px}
+  .overview{padding:10px 12px;gap:8px 14px}
+  .scan-box{width:calc(100% - 20px);padding:14px}
+  .cmpgrid{grid-template-columns:88px 1fr 1fr;font-size:11px}
+  .emptycard{margin:4vh 10px;padding:24px 18px}
+}
+@media(max-width:400px){
+  #toolbar button{flex:1 1 auto}
+  .plan .pdist{font-size:12px}
+}
 </style>
 </head>
 <body>
 
 <div id="toolbar">
-  <div class="brand"><span class="dot"></span>ROUTE GENERATOR v8.4
-    <small>自备导航数据 · CAAC 官方航路 · 国内走廊 · 高度层滚轮</small></div>
+  <div class="brand"><span class="dot"></span>航路生成器<small>v8.6</small></div>
   <span id="dataTag" title="当前数据源">数据加载中…</span>
+  <button id="btnTheme" title="切换白天 / 黑夜">☀️</button>
   <button id="btnData" title="导入 / 管理导航数据">数据管理</button>
   <button id="btnGen" class="primary" disabled>生成航路</button>
   <button id="btnClear">清空</button>
@@ -461,7 +597,7 @@ details.cmp[open] summary{border-bottom:1px solid var(--line);color:var(--txt)}
   <div class="mbox">
     <div class="mhead">
       <span class="t">数据管理</span>
-      <span class="hint2" style="margin-left:6px">v8.4 · 不带任何第三方导航数据，数据由你导入</span>
+      <span class="hint2" style="margin-left:6px">v8.6 · 不带任何第三方导航数据，数据由你导入</span>
       <button class="x" id="dclose" title="关闭 (Esc)">✕</button>
     </div>
 
@@ -477,17 +613,26 @@ details.cmp[open] summary{border-bottom:1px solid var(--line);color:var(--txt)}
       <div class="pane on" id="pane-nav">
         <div class="drop" id="dropNav">
           <b>把导航数据拖到这里，或点击选择文件</b>
-          <small>需要 2 个必需文件 + 1 个推荐文件，见下表。也可以直接拖一个 .zip（Navigraph / Aerosoft 的 X-Plane 包）。</small>
+          <small>最省事：直接拖<b>整个 .zip</b>（Navigraph / Aerosoft 的 X-Plane 包）。<br>
+          里面的 fix / awy / nav / aptmeta 会自动识别，CIFP 与 atc/airspace 自动跳过。</small>
         </div>
 
         <div class="reqbox">
-          <div class="reqrow"><span class="rq must">必需</span><b>earth_fix.dat</b><span>所有航路点坐标，没有它就没有节点</span></div>
-          <div class="reqrow"><span class="rq must">必需</span><b>earth_awy.dat</b><span>航段（哪两点之间有航路），没有它就没有航路可走</span></div>
-          <div class="reqrow"><span class="rq need">推荐</span><b>apt.dat</b><span>机场坐标；不导的话只能看航路点，选不了起降机场</span></div>
-          <div class="reqrow"><span class="rq opt">可选</span><b>earth_nav.dat</b><span>VOR / NDB；不少航段端点其实是导航台，缺了会有少量航段连不上</span></div>
+          <div class="reqrow"><span class="rq must">必需</span><b>earth_fix.dat</b><span>所有航路点坐标</span></div>
+          <div class="reqrow"><span class="rq must">必需</span><b>earth_awy.dat</b><span>航段（哪两点之间有航路）</span></div>
+          <div class="reqrow"><span class="rq need">推荐</span><b>earth_aptmeta.dat</b><span>机场坐标与标高，导航包自带；<b>有它就不需要 apt.dat</b></span></div>
+          <div class="reqrow"><span class="rq opt">可选</span><b>earth_nav.dat</b><span>VOR / NDB，补全航段端点</span></div>
+          <div class="reqrow"><span class="rq opt">可选</span><b>apt.dat</b><span>X-Plane 自带，机场更全（含小机场 / 直升机场）；没有就用 aptmeta</span></div>
+        </div>
+        <div class="infobox" style="margin-top:10px">
+          <b>apt.dat 和 earth_aptmeta.dat 只导一个也行</b><br>
+          · 只导 <b>apt.dat</b> → 机场最全（含直升机场、水上基地，这两类不会进可选列表）<br>
+          · 只导 <b>earth_aptmeta.dat</b> → 约 2.3 万个 IFR 机场，够用<br>
+          · <b>两个一起导</b> → 自动合并：apt.dat 优先，aptmeta 补齐它没有的机场（合计约 4 万个）
         </div>
         <div class="hint2" style="margin-top:7px">
-          earth_hold / earth_mora / earth_msa / earth_aptmeta.dat 等文件本工具用不到，拖进来会标成「不需要」并自动忽略。
+          earth_hold / earth_mora / earth_msa、atc.dat、airspace.txt 会被读入但本工具用不到；
+          CIFP 里上万个进离场文件直接跳过。
         </div>
 
         <div class="dlist" id="navList"></div>
@@ -717,14 +862,20 @@ const DatasetLoader = (function () {
   }
 
   function parseAirports(text, airports) {
+    const seen = new Set();
     for (const line of text.split('\n')) {
       if (!line) continue;
       const f = line.split(' ');
       if (f.length < 3) continue;
+      const icao = f[0].toUpperCase();
+      if (seen.has(icao)) continue;            // v8.6：同名 ICAO 只保留一条
       const lat = Codec.lat(f[1]), lon = Codec.lon(f[2]);
       if (!isFinite(lat) || !isFinite(lon)) continue;
-      airports.push({ icao: f[0].toUpperCase(), lat, lon,
-                      elev: f[3] !== undefined ? parseInt(f[3], 10) || 0 : 0 });
+      seen.add(icao);
+      const tp = (f[4] || '').toUpperCase();
+      airports.push({ icao, lat, lon,
+                      elev: f[3] !== undefined ? parseInt(f[3], 10) || 0 : 0,
+                      type: (tp === 'H' || tp === 'S') ? tp : 'A' });
     }
   }
 
@@ -1668,7 +1819,7 @@ const PathFinder = (function () {
         if (ex !== undefined && gNew >= ex) continue;
         openG.set(e.to, gNew);
         came.set(e.to, { from: cur, awy: e.awy, dist: e.dist, type: e.type,
-                         minFL: e.minFL, maxFL: e.maxFL });
+                         minFL: e.minFL, maxFL: e.maxFL, terminal: e.terminal });
         heap.push(e.to, gNew + h(e.to));
       }
     }
@@ -1690,7 +1841,7 @@ const PathFinder = (function () {
       const a = graph.nodes[c.from], b = graph.nodes[k];
       segs.unshift({
         from: c.from, to: k, awy: c.awy, type: c.type, dist: c.dist,
-        minFL: c.minFL, maxFL: c.maxFL,
+        minFL: c.minFL, maxFL: c.maxFL, terminal: c.terminal,
         fromId: a.id, toId: b.id,
         trk: Geo.bearingDeg(a, b)
       });
@@ -1700,7 +1851,10 @@ const PathFinder = (function () {
     // 逐段校验高度约束（用于 UI 展示与自检）
     let violations = 0;
     if (cruiseFL !== null && cruiseFL !== undefined) {
-      for (const s of segs) if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) violations++;
+      for (const s of segs) {
+        if (s.terminal) continue;                 // 起降 40 NM 内是爬升/下降段，不参与巡航高度校验
+        if (!(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)) violations++;
+      }
     }
 
     return {
@@ -1890,7 +2044,7 @@ const PathFinder = (function () {
       const a = graph.nodes[c.from], b = graph.nodes[k];
       segs.unshift({
         from: c.from, to: k, awy: c.awy, type: c.type, dist: c.dist,
-        minFL: c.minFL, maxFL: c.maxFL,
+        minFL: c.minFL, maxFL: c.maxFL, terminal: c.terminal,
         fromId: a.id, toId: b.id, trk: Geo.bearingDeg(a, b)
       });
       k = c.from;
@@ -2321,7 +2475,8 @@ const PackCodec = (function () {
       if (!a || !a.icao || seenApt.has(a.icao)) continue;
       if (!isFinite(a.lat) || !isFinite(a.lon)) continue;
       seenApt.add(a.icao);
-      apts.push(`${a.icao} ${encLat(a.lat)} ${encLon(a.lon)} ${Math.round(a.elev || 0)}`);
+      const tp = (a.type === 'H' || a.type === 'S') ? ' ' + a.type : '';
+      apts.push(`${a.icao} ${encLat(a.lat)} ${encLon(a.lon)} ${Math.round(a.elev || 0)}${tp}`);
     }
     return {
       NODES_GLOBAL: nodes.sort().join('\n'),
@@ -2556,10 +2711,12 @@ const NavParser = (function () {
     const base = String(name || '').split(/[\\/]/).pop().toLowerCase();
     if (base.endsWith('.zip')) return 'zip';
     if (/apt\.dat$/.test(base)) return 'apt';
+    if (/earth_aptmeta\.dat$/.test(base)) return 'aptmeta';
     if (/earth_fix|(^|_)fix\.dat$/.test(base)) return 'fix';
     if (/earth_awy|(^|_)awy\.dat$/.test(base)) return 'awy';
     if (/earth_nav|(^|_)nav\.dat$/.test(base)) return 'nav';
-    if (/earth_(hold|mora|msa|aptmeta)\.dat$/.test(base)) return 'skip';
+    if (/^cycle\.json$/.test(base)) return 'cycle';
+    if (/earth_(hold|mora|msa)\.dat$/.test(base)) return 'skip';
     if (base.endsWith('.dat')) return 'dat';
     return 'other';
   }
@@ -2593,7 +2750,7 @@ const NavParser = (function () {
       if (name.endsWith('/')) continue;
       if (/\/cifp\//i.test(name)) continue;          // 每机场一个的进离场程序，用不上
       const base = name.split('/').pop().toLowerCase();
-      if (!/^(earth_(fix|awy|nav)\.dat|apt\.dat)$/.test(base)) continue;
+      if (!/^(earth_(fix|awy|nav|aptmeta)\.dat|apt\.dat|cycle\.json)$/.test(base)) continue;
 
       if (sig(localOff) !== 0x04034b50) continue;
       const lNameLen = dv.getUint16(localOff + 26, true);
@@ -2628,10 +2785,11 @@ const NavParser = (function () {
     eachLine(text, (line) => {
       const f = line.trim().split(/\s+/);
       if (f.length < 3) { bad++; return; }
-      let ident, lat, lon, region = '';
+      let ident, lat, lon, region = '', owner = '';
       if (latFirst) {
         lat = +f[0]; lon = +f[1]; ident = f[2];
         // f[3] 是 ENRT 或所属机场，f[4] 才是区域码
+        if (f[3] && f[3] !== 'ENRT') owner = f[3];
         if (f.length >= 5 && /^[A-Z0-9]{2,4}$/.test(f[4])) { region = f[4]; withRegion++; }
       } else {
         ident = f[0]; lat = +f[1]; lon = +f[2];
@@ -2639,7 +2797,7 @@ const NavParser = (function () {
       }
       if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { bad++; return; }
       if (!ident || !IDENT_RE.test(ident)) { bad++; return; }
-      addPoint({ ident, lat, lon, region, kind: 'F', freq: '', src: 'fix' });
+      addPoint({ ident, lat, lon, region, owner, kind: 'F', freq: '', src: 'fix' });
       n++;
     });
     return { n, bad, latFirst, withRegion };
@@ -2711,6 +2869,49 @@ const NavParser = (function () {
     });
   }
 
+  /* ---------------- earth_aptmeta.dat（机场元数据，随导航数据包发布） ----------------
+   * 实测格式（1210）：
+   *   <ICAO> <region> <lat> <lon> <elev_ft> <P|C> <transition_alt> <..> <transition_level>
+   * 例：ZBAA ZB  40.073333333  116.598333333   116 C 12400 I  9850 FL118
+   * 这就是「导航数据里自带机场」的来源，apt.dat 不在包里时靠它。
+   * ------------------------------------------------------------------ */
+  function parseAptMeta(text, airports, seen) {
+    let n = 0, bad = 0;
+    eachLine(text, (line) => {
+      const t = line.trim();
+      if (!t || t[0] === 'I' || /Version\s+-/.test(t)) return;
+      const f = t.split(/\s+/);
+      if (f.length < 5) { bad++; return; }
+      const ident = f[0].toUpperCase();
+      const lat = parseFloat(f[2]), lon = parseFloat(f[3]);
+      if (!/^[A-Z0-9]{2,5}$/.test(ident)) { bad++; return; }
+      if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { bad++; return; }
+      if (seen.has(ident)) return;
+      seen.add(ident);
+      airports.push({ icao: ident, lat, lon, elev: parseInt(f[4], 10) || 0, type: 'A' });
+      n++;
+    });
+    return { n, bad };
+  }
+
+  /** 最后兜底：用 terminal fix 的所属机场聚类，取质心当机场位置（没有 apt.dat / aptmeta 时） */
+  function deriveAirportsFromFixes(points, airports) {
+    const groups = new Map();
+    for (const p of points) {
+      if (!p.owner || !/^[A-Z0-9]{3,5}$/.test(p.owner)) continue;
+      let g = groups.get(p.owner);
+      if (!g) { g = { n: 0, lat: 0, lon: 0 }; groups.set(p.owner, g); }
+      g.n++; g.lat += p.lat; g.lon += p.lon;
+    }
+    let n = 0;
+    for (const [icao, g] of groups) {
+      if (g.n < 3) continue;                    // 少于 3 个程序点的机场定位不可靠
+      airports.push({ icao, lat: g.lat / g.n, lon: g.lon / g.n, elev: 0, type: 'A' });
+      n++;
+    }
+    return { n };
+  }
+
   /* ---------------- apt.dat ---------------- */
   function pairIn(f) {
     // 机场坐标固定 8 位小数；跑道宽度/长度只有 2 位，靠小数位数区分
@@ -2740,7 +2941,7 @@ const NavParser = (function () {
       }
       if (icao && lat !== null && isFinite(lat) && isFinite(lon) && !seen.has(icao)) {
         seen.add(icao);
-        airports.push({ icao, lat, lon, elev: cur.elev || 0 });
+        airports.push({ icao, lat, lon, elev: cur.elev || 0, type: cur.type || 'A' });
         n++;
       } else skipped++;
       cur = null; datum = null; code = null;
@@ -2754,7 +2955,9 @@ const NavParser = (function () {
       if (rc === '1' || rc === '16' || rc === '17') {
         flush();
         const f = line.trim().split(/\s+/);
-        cur = { id: f[4] || '', elev: parseInt(f[1], 10) || 0, pts: [] };
+        // 行码 1=陆地机场 16=水上飞机基地 17=直升机场
+        cur = { id: f[4] || '', elev: parseInt(f[1], 10) || 0, pts: [],
+                type: rc === '17' ? 'H' : rc === '16' ? 'S' : 'A' };
         return;
       }
       if (!cur || (rc !== '100' && rc !== '101' && rc !== '102' && rc !== '1302')) return;
@@ -2782,7 +2985,7 @@ const NavParser = (function () {
     const warnings = [];
 
     const fixTexts = [], awyTexts = [], navTexts = [];
-    let aptEntry = null;
+    let aptEntry = null, aptMetaEntry = null, cycleText = '';
 
     for (const f of files) {
       const kind = classify(f.name);
@@ -2792,6 +2995,8 @@ const NavParser = (function () {
       else if (kind === 'awy') awyTexts.push(f);
       else if (kind === 'nav') navTexts.push(f);
       else if (kind === 'apt' && !aptEntry) aptEntry = f;
+      else if (kind === 'aptmeta' && !aptMetaEntry) aptMetaEntry = f;
+      else if (kind === 'cycle') cycleText = f.text || '';
     }
 
     const addPoint = (rec) => {
@@ -2809,7 +3014,6 @@ const NavParser = (function () {
 
     if (!fixTexts.length) warnings.push('没有找到 earth_fix.dat —— 航路点缺失，无法生成航路。');
     if (!awyTexts.length) warnings.push('没有找到 earth_awy.dat —— 没有任何航段，A* 无路可走。');
-    if (!aptEntry) warnings.push('没有 apt.dat —— 机场列表为空，无法选择起降机场。');
 
     // 1) 航路点
     let fixStat = { n: 0, bad: 0, latFirst: null, withRegion: 0 };
@@ -2900,14 +3104,39 @@ const NavParser = (function () {
       maxFL: s.maxFt > 0 ? Math.ceil(s.maxFt / 100) : 600
     }));
 
-    // 5) 机场
+    // 5) 机场：apt.dat 与 earth_aptmeta.dat **合并**（v8.6）
+    //    apt.dat 有跑道/类别（含直升机场、水上基地），aptmeta 补它没有的机场（多为美国小场）。
+    //    只导其中一个也能用：单 apt.dat / 单 aptmeta / 两个一起。
     let aptStat = { n: 0, skipped: 0 };
+    let metaStat = { n: 0, bad: 0 };
+    let airportSource = '';
     const airports = [];
+    const aptSeen = new Set();
+
     if (aptEntry) {
       aptStat = parseApt(aptEntry.text, airports);
+      for (const a of airports) aptSeen.add(a.icao);
       const entry = info.find((x) => x.name === aptEntry.name);
       if (entry) entry.parsed = aptStat.n;
-      if (!airports.length) warnings.push('apt.dat 里没有解析出机场（格式可能不是 11/12 版）。');
+      if (airports.length) airportSource = 'apt.dat';
+      else warnings.push('apt.dat 里没有解析出机场（格式可能不是 11/12 版）。');
+    }
+    if (aptMetaEntry) {
+      metaStat = parseAptMeta(aptMetaEntry.text, airports, aptSeen);
+      const entry = info.find((x) => x.name === aptMetaEntry.name);
+      if (entry) entry.parsed = metaStat.n;
+      if (metaStat.n) airportSource = airportSource ? 'apt.dat + earth_aptmeta.dat' : 'earth_aptmeta.dat';
+    }
+    if (!airports.length && points.length) {
+      const st = deriveAirportsFromFixes(points, airports);
+      for (const a of airports) aptSeen.add(a.icao);
+      if (airports.length) {
+        airportSource = 'fix 推算';
+        warnings.push(`没有 apt.dat / earth_aptmeta.dat，机场坐标是用 ${st.n} 个机场的进离场程序点推算的（误差几海里，无标高）。`);
+      }
+    }
+    if (!aptEntry && !aptMetaEntry && !airports.length) {
+      warnings.push('没有 apt.dat 也没有 earth_aptmeta.dat —— 机场列表为空，无法选择起降机场。');
     }
 
     if (awyStat.unresolved > 0) {
@@ -2935,13 +3164,23 @@ const NavParser = (function () {
 
     const pack = PackCodec.encode(ds);
     const airways = new Set(segments.map((s) => s.awy));
+    const special = ds.airports.filter((a) => a.type === 'H' || a.type === 'S').length;
     const stats = {
       nodes: ds.nodes.length, segments: ds.segments.length,
-      airports: ds.airports.length, airways: airways.size
+      airports: ds.airports.length - special,          // 可选固定翼机场
+      specialAirports: special,                        // 直升 / 水上，单独计数
+      airportsTotal: ds.airports.length,
+      airways: airways.size
     };
 
+    let cycle = '';
+    if (cycleText) {
+      try { const j = JSON.parse(cycleText); cycle = String(j.cycle || '').trim(); } catch (e) { /* ignore */ }
+    }
+    if (airportSource) console.log('[机场] 来源：' + airportSource + ' · ' + airports.length + ' 个');
+
     return {
-      pack, stats, info, warnings,
+      pack, stats, info, warnings, cycle, airportSource,
       detail: { fix: fixStat, nav: navStat, awy: awyStat, apt: aptStat },
       ms: Date.now() - t0
     };
@@ -3155,7 +3394,39 @@ const UI = (function () {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-async function init() {
+/* ---------------- 白天 / 黑夜（v8.6） ---------------- */
+  const THEME_KEY = 'routegen.theme';
+  function storedTheme() {
+    try { const t = localStorage.getItem(THEME_KEY); if (t === 'light' || t === 'dark') return t; } catch (e) {}
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    } catch (e) {}
+    return 'dark';
+  }
+  function applyTheme(t) {
+    try {
+      const el = document.documentElement;
+      if (el && el.setAttribute) el.setAttribute('data-theme', t);
+    } catch (e) {}
+    const b = $('btnTheme');
+    if (b) {
+      b.textContent = t === 'light' ? '🌙' : '☀️';
+      b.title = t === 'light' ? '切换黑夜模式' : '切换白天模式';
+    }
+  }
+  function toggleTheme() {
+    let cur = 'dark';
+    try {
+      const el = document.documentElement;
+      if (el && el.getAttribute) cur = el.getAttribute('data-theme') || 'dark';
+    } catch (e) {}
+    const next = cur === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  }
+
+  async function init() {
+    applyTheme(storedTheme());          // v8.6：先定主题，避免闪一下
     // ---- 1. 事件与控件（与数据无关，先接好） ----
     wireAirport('from');
     wireAirport('to');
@@ -3269,7 +3540,11 @@ async function init() {
         rec.domestic = rec.domestic || { corridors: [] };
       }
 
-      ds.airportByIcao = new Map(ds.airports.map((a) => [a.icao, a]));
+      // v8.6：直升机场 / 水上基地不进可选列表，单独留一份用于给提示
+      ds.specialByIcao = new Map(ds.airports.filter((a) => a.type === 'H' || a.type === 'S')
+        .map((a) => [a.icao, a]));
+      ds.airportByIcao = new Map(ds.airports.filter((a) => a.type !== 'H' && a.type !== 'S')
+        .map((a) => [a.icao, a]));
       DATASET = ds;
       window.__DATASET__ = ds;
 
@@ -3277,7 +3552,9 @@ async function init() {
       RuleStrategy.initPriority(rec.priority || {});
 
       const airways = new Set(ds.segments.map((s) => s.awy));
-      $('cntApt').textContent = ds.airports.length.toLocaleString();
+      const nSpecial = ds.specialByIcao.size;
+      $('cntApt').textContent = ds.airportByIcao.size.toLocaleString();
+      $('cntApt').title = nSpecial ? `另有 ${nSpecial.toLocaleString()} 个直升机场/水上基地（不可选）` : '';
       $('cntNode').textContent = ds.nodes.length.toLocaleString();
       $('cntSeg').textContent = ds.segments.length.toLocaleString();
       $('cntAwy').textContent = airways.size.toLocaleString();
@@ -3366,7 +3643,7 @@ async function init() {
     $('out').innerHTML = `<div class="emptycard">
       <div class="ic">✈</div>
       <h2>先导入导航数据</h2>
-      <p>v8.4 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
+      <p>v8.6 不内置任何第三方导航数据。请用自己的 X-Plane 12 / Navigraph 数据来生成航路。</p>
       <div class="steps">
         <div>1. 打开 X-Plane 12 的 <b>Custom Data</b> 文件夹，找 <b>earth_fix.dat</b> + <b>earth_awy.dat</b>（必需）</div>
         <div>2. 再找 <b>apt.dat</b>：在 <b>Global Scenery\\Global Airports\\Earth nav data</b> 下</div>
@@ -3448,6 +3725,7 @@ async function init() {
     return `<div class="dlist">${files.map((f) => {
       const kind = classify ? classify(f.name) : '';
       const label = { fix: '航路点', awy: '航段', apt: '机场', nav: '导航台', zip: '压缩包',
+                      aptmeta: '机场信息', cycle: 'AIRAC 周期',
                       csv: '航路表', json: '航路表', skip: '不需要', other: '未识别', dat: '未识别' }[kind] || '文件';
       const size = f.bytes ? Math.max(1, Math.round(f.bytes / 1024)) + ' KB'
         : f.text ? Math.max(1, Math.round(f.text.length / 1024)) + ' KB'
@@ -3488,13 +3766,14 @@ async function init() {
     let note = '';
     if (missing.length) {
       note = `<div class="no">还缺必需文件：${missing.join('、')} —— 到 X-Plane 12 的 <b>Custom Data</b> 文件夹里找它们。</div>`;
-    } else if (!kinds.has('apt')) {
-      note = '<div class="dim">缺 apt.dat：能解析出航路点，但没有机场可选，生成不了航路。</div>';
+    } else if (!kinds.has('aptmeta') && !kinds.has('apt')) {
+      note = '<div class="dim">既没有 earth_aptmeta.dat 也没有 apt.dat：机场位置会用进离场程序点推算，小机场可能缺。</div>';
     } else if (!kinds.has('nav')) {
       note = '<div class="dim">没有 earth_nav.dat：少数以 VOR/NDB 为端点的航段会连不上，一般不影响主要航路。</div>';
     }
     box.innerHTML = `已选 ${navFiles.length} 个文件：${tag('fix', 'earth_fix.dat', true)}　` +
-      `${tag('awy', 'earth_awy.dat', true)}　${tag('apt', 'apt.dat', false)}　${tag('nav', 'earth_nav.dat', false)}` + note;
+      `${tag('awy', 'earth_awy.dat', true)}　${tag('aptmeta', 'earth_aptmeta.dat', false)}　` +
+      `${tag('nav', 'earth_nav.dat', false)}　${tag('apt', 'apt.dat', false)}` + note;
   }
 
   /* ---------------- 面板绑定 ---------------- */
@@ -3502,6 +3781,8 @@ async function init() {
     const modal = $('dmodal');
     if (!modal) return;
 
+    const th = $('btnTheme');
+    if (th) th.addEventListener('click', toggleTheme);
     const openers = [$('btnData'), $('btnData2'), $('dataTag')];
     openers.forEach((b) => b && b.addEventListener('click', () => openPanel()));
     $('dclose').addEventListener('click', closePanel);
@@ -3563,7 +3844,7 @@ async function init() {
       await new Promise((r) => setTimeout(r, 40));
       try {
         navParsed = NavParser.parse(navFiles);
-        const cycle = detectCycle(navFiles);
+        const cycle = navParsed.cycle || detectCycle(navFiles);
         navParsed.label = (cycle ? `X-Plane AIRAC ${cycle}` : 'X-Plane 导航数据') + ` · ${navFiles.length} 个文件`;
         // 按解析结果重新着色：解析出 0 条的文件标红
         $('navList').innerHTML = fileListHtml(navFiles, NavParser.classify, navParsed.info);
@@ -3576,7 +3857,8 @@ async function init() {
             '选机场时会是空的。</div>' : '') +
           warnHtml(navParsed.warnings) +
           `<div class="hint2">解析用时 ${navParsed.ms} ms · 航段记录 ${navParsed.detail.awy.n} 条` +
-          `（含方向限制 ${navParsed.detail.awy.withDir} 条）</div>`;
+          `（含方向限制 ${navParsed.detail.awy.withDir} 条）` +
+          ` · 机场来源：${esc(navParsed.airportSource || '无')}</div>`;
         $('btnApplyNav').disabled = !(navParsed.stats.nodes && navParsed.stats.segments);
       } catch (err) {
         console.error(err);
@@ -3916,6 +4198,12 @@ async function init() {
 
       const a = DATASET && DATASET.airportByIcao ? DATASET.airportByIcao.get(q) : null;
       if (a) { setState('ok', a); sync(); return; }
+      const sp = DATASET && DATASET.specialByIcao ? DATASET.specialByIcao.get(q) : null;
+      if (sp) {
+        setState('bad', null, `${q} 是${sp.type === 'H' ? '直升机场' : '水上飞机基地'}，本工具只支持固定翼机场`);
+        sync();
+        return;
+      }
 
       // 还没输完（<4 位）就别报错，等输完或按回车/失焦再说
       if (q.length >= 4 || o.force) {
@@ -4130,6 +4418,7 @@ async function init() {
     const t0 = performance.now();
     DATASET.attachOnly = [from.icao, to.icao];
     const graph = GraphBuilder.build(DATASET, strategy);
+    relaxTerminalEdges(graph, [from, to]);      // v8.5：终端区不套巡航高度
     const buildMs = performance.now() - t0;
     await Scanner.finish('graph', buildMs);
 
@@ -4341,6 +4630,35 @@ async function init() {
     return key;
   }
 
+  /**
+   * v8.5：起降 40 NM 内视为「终端区」，不套用巡航高度过滤。
+   *
+   * 真实数据（尤其 Navigraph r4）把进离场航路的上下限写得很实：苏黎世 TRA→RISLI
+   * 只有 FL80–FL165，按「巡航段必须覆盖 FL331」去筛，机场直接变成孤岛。
+   * 真实飞行这段本来就是 SID/STAR 在爬升/下降，不该按巡航高度卡。
+   */
+  const TERMINAL_RADIUS_NM = 40;
+  function relaxTerminalEdges(graph, airports) {
+    const pts = (airports || []).filter(Boolean);
+    if (!pts.length) return 0;
+    let n = 0;
+    for (const [key, list] of graph.adj) {
+      const a = graph.nodes[key];
+      if (!a) continue;
+      const nearA = pts.some((p) => Geo.distNM(a, p) <= TERMINAL_RADIUS_NM);
+      for (const e of list) {
+        const b = graph.nodes[e.to];
+        if (!b) continue;
+        if (e.minFL === 0 && e.maxFL >= 600) continue;
+        const nearB = nearA || pts.some((p) => Geo.distNM(b, p) <= TERMINAL_RADIUS_NM);
+        if (!nearA && !nearB) continue;
+        e.minFL = 0; e.maxFL = 600; e.terminal = true;
+        n++;
+      }
+    }
+    return n;
+  }
+
   function computeOfficialPlans(originIcao, destIcao, cruiseFL, graph, strategy) {
     const out = [];
 
@@ -4377,7 +4695,7 @@ async function init() {
       if (!segs.length) return null;
 
       const sig = segs.map((s) => s.fromId + '>' + s.toId).join('|');
-      const violations = segs.filter((s) => !(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)).length;
+      const violations = segs.filter((s) => !s.terminal && !(s.minFL <= cruiseFL && cruiseFL <= s.maxFL)).length;
       const plan = {
         segs,
         distNM: segs.reduce((a, s) => a + s.dist, 0),
@@ -4782,7 +5100,7 @@ async function init() {
     plans.forEach((p, i) => {
       const pSegs = p.segs.map((s) => Object.assign({}, s, { dir: Geo.directionOf(s.trk) }));
       const pRoute = buildRouteString(pSegs, from.icao, to.icao, strategy);
-      const bad = pSegs.filter((s) => !(s.minFL <= planFL && planFL <= s.maxFL)).length;
+      const bad = pSegs.filter((s) => !s.terminal && !(s.minFL <= planFL && planFL <= s.maxFL)).length;
       const dctN = pSegs.filter((s) => s.type === 'DCT').length;
       const awys = [...new Set(pSegs.map((s) => s.awy).filter((x) => x !== 'DCT'))];
       const delta = p.distNM - best.distNM;
@@ -4794,6 +5112,7 @@ async function init() {
           <span class="pdist">${p.distNM.toFixed(0)} NM</span>
           <span class="pmeta">${pSegs.length} 段 · ${awys.length} 航路${dctN ? ' · DCT ' + dctN : ''}</span>
           ${delta > 0.5 ? `<span class="pdelta">+${delta.toFixed(0)} NM</span>` : ''}
+          ${pSegs.some((s) => s.terminal) ? '<span class="pcont">含起降爬升/下降段</span>' : ''}
           <span class="pok ${bad === 0 ? 'y' : 'x'}">${bad === 0 ? '✓ 高度合规' : '✗ ' + bad + ' 段越界'}</span>
           <button type="button" class="pcopy" data-copy="eng${i}" title="复制此航路串">复制</button>
         </div>
