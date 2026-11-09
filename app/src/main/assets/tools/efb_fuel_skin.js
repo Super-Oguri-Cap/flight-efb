@@ -251,6 +251,12 @@
   }
 
   function boot() {
+    // V9 起页面自带「cselect」跨平台自定义下拉（视觉与配色就是照本皮肤做的），
+    // 再套一层 pk-trigger 会出现两个下拉按钮。检测到页面自绘下拉就直接让位。
+    if (document.querySelector('.cselect')) {
+      console.info('[EFB] 页面已自带自定义下拉，油量皮肤让位');
+      return;
+    }
     injectCss();
     var ok = false;
     ok = enhance(document.getElementById('regime')) || ok;
