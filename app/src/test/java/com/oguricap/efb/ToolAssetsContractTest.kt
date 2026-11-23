@@ -22,6 +22,11 @@ import org.robolectric.annotation.Config
  *   1. 原始 HTML（磁盘上的字节级原样）：结构仍在；
  *   2. 配置里的每个锚点：命中数恰好 1；
  *   3. 替换后的产物：桥与 guard 各只有一份，且重复调用不叠加。
+ *
+ * 结构断言不在这里复述，一律走 [ToolContract.verifySource]。它是运行期
+ * `prepareHtml` 用的同一份实现，配置驱动、一处维护：往 `efb_patches.json` 里加一条
+ * `requiredConsts` / `requiredLiterals` / `resultSelectors`，出包期与运行期同时生效，
+ * 不会出现「测试里硬编码了一份、运行期另跑一份」的分叉。
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -51,15 +56,48 @@ class ToolAssetsContractTest {
 
     // ------------------------------------------------------------------ 1
 
+    /**
+     * 配置驱动的结构断言：一次覆盖两份 HTML 的全部 requiredConsts（8 个）、
+     * requiredLiterals（9 条）、resultSelectors（5 个）与 7 个违禁串。
+     *
+     * 这里**刻意不复述**那些字面量。以前测试自己循环校验 requiredConsts、
+     * 另有一份硬编码的 forbidden 列表，而 `id="fileNav"` 这类只写在配置里的条目
+     * 一条都没人管 —— 页面改名不会让构建失败。
+     */
+    @Test
+    fun everyToolSourceSatisfiesVerifySource() {
+        val tools = config().tools
+        assertTrue("efb_patches.json 必须至少配置一个工具", tools.isNotEmpty())
+        for (s in tools.values) {
+            ToolContract.verifySource(read(s.asset), s)
+        }
+    }
+
+    /** 配置本身不能是空壳：字段被删空时上面那条会「全部通过」，等于没有门禁。 */
+    @Test
+    fun contractConfigIsNotEmpty() {
+        val route = spec(ToolContract.ROUTE_ASSET)
+        val fuel = spec(ToolContract.FUEL_ASSET)
+
+        assertTrue("航路页必须配置 requiredConsts", route.requiredConsts.isNotEmpty())
+        assertTrue("航路页必须配置 requiredLiterals", route.requiredLiterals.isNotEmpty())
+        assertTrue("航路页必须配置 resultSelectors", route.resultSelectors.isNotEmpty())
+        assertTrue("油量页必须配置 requiredLiterals", fuel.requiredLiterals.isNotEmpty())
+
+        for (rs in route.resultSelectors) {
+            assertTrue("resultSelectors 里的 `selector` 不能为空", rs.selector.isNotBlank())
+            assertTrue(
+                "resultSelectors `${rs.selector}` 必须至少声明一个 literals",
+                rs.literals.isNotEmpty()
+            )
+        }
+    }
+
+    // ------------------------------------------------------------------ 2
+
     @Test
     fun routeHtmlKeepsStructuralContract() {
         val html = read(ToolContract.ROUTE_ASSET)
-
-        // 7 个顶层 const：桥是单个对象字面量，任一改名整座桥都建不起来
-        for (name in spec(ToolContract.ROUTE_ASSET).requiredConsts) {
-            val needle = "const $name = (function"
-            assertEquals("$needle 必须恰好出现 1 次", 1, count(html, needle))
-        }
 
         // 桥的插入点：只有 </script>\s*</body> 这个序列是唯一的
         assertEquals(
@@ -76,7 +114,7 @@ class ToolAssetsContractTest {
         )
     }
 
-    // ------------------------------------------------------------------ 2
+    // ------------------------------------------------------------------ 3
 
     @Test
     fun routeHtmlKeepsExportMechanism() {
@@ -89,17 +127,11 @@ class ToolAssetsContractTest {
         assertEquals("a.click() 应恰好 1 处", 1, count(html, "a.click()"))
     }
 
-    // ------------------------------------------------------------------ 3
+    // ------------------------------------------------------------------ 4
 
     @Test
     fun fuelHtmlKeepsDistanceAndSelfTestContract() {
-        val html = read(ToolContract.FUEL_ASSET)
         val s = spec(ToolContract.FUEL_ASSET)
-
-        // 距离注入依赖 #dist + input 事件 + calc()；自检只有文本输出，不是布尔信号
-        assertEquals("#dist 输入框应恰好 1 个", 1, count(html, "id=\"dist\""))
-        assertEquals("calc() 应恰好 1 处", 1, count(html, "function calc()"))
-        assertEquals("runSelfTests() 应恰好 1 处", 1, count(html, "function runSelfTests()"))
 
         // 油量页只打一个「皮肤」补丁（机型/规则弹层美化），不含桥：
         // 顶层 function 本来就是 window 属性，不需要 shim
@@ -109,7 +141,29 @@ class ToolAssetsContractTest {
         assertTrue("距离注入脚本必须带 __NM__ 占位符", s.distanceJs.contains("__NM__"))
     }
 
-    // ------------------------------------------------------------------ 4
+    // ------------------------------------------------------------------ 5
+
+    /**
+     * 油量页自带的自绘下拉（`.cselect`）是静态节点，皮肤脚本见到就让位。
+     *
+     * 这条断言的作用是让「页面不再自带下拉」这件事在构建期就红：那种情况下
+     * `efb_fuel_skin.js` 的让位判断会失效，皮肤是否该启用、该按什么条件启用
+     * 都需要重新评估，不能靠真机发现。
+     */
+    @Test
+    fun fuelHtmlKeepsItsOwnCustomSelect() {
+        val html = read(ToolContract.FUEL_ASSET)
+
+        assertEquals(
+            "油量页的 `.cselect` 静态包裹节点必须恰好 2 处（规章 + 机型）",
+            2,
+            count(html, "class=\"cselect\"")
+        )
+        assertEquals("规章下拉的包裹节点必须唯一", 1, count(html, "data-cselect=\"regime\""))
+        assertEquals("机型下拉的包裹节点必须唯一", 1, count(html, "data-cselect=\"aircraft\""))
+    }
+
+    // ------------------------------------------------------------------ 6
 
     @Test
     fun everyConfiguredAnchorHitsExactlyOnce() {
@@ -134,25 +188,7 @@ class ToolAssetsContractTest {
         }
     }
 
-    // ------------------------------------------------------------------ 5
-
-    @Test
-    fun htmlStaysSelfContained() {
-        // 不按 fetch( 判：航路页 843 行的 fetch(src.url) 在 DatasetLoader 的
-        // kind==='fetch' 死分支里，没有 URL 字面量，App 也走不到。
-        val forbidden = listOf(
-            "http://", "https://", "<script src", "<link href",
-            "@import", "type=\"module\"", "type='module'",
-        )
-        for (s in config().tools.values) {
-            val html = read(s.asset)
-            for (bad in forbidden) {
-                assertFalse("${s.asset} 不应出现 `$bad`（单文件自包含被破坏）", html.contains(bad))
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------ 6
+    // ------------------------------------------------------------------ 7
 
     @Test
     fun appliedPatchesAreSingleAndIdempotent() {
@@ -184,7 +220,7 @@ class ToolAssetsContractTest {
         assertEquals("applyPatches 不能改原始字符串", read(ToolContract.ROUTE_ASSET), raw)
     }
 
-    // ------------------------------------------------------------------ 7
+    // ------------------------------------------------------------------ 8
 
     @Test
     fun fuelSkinIsAppliedInMemoryOnly() {
@@ -203,7 +239,7 @@ class ToolAssetsContractTest {
         assertEquals("重复调用不叠加", once, ToolContract.applyPatches(once, s))
     }
 
-    // ------------------------------------------------------------------ 8
+    // ------------------------------------------------------------------ 9
 
     @Test
     fun versionsAreExtractableAndBridgeVersionMatches() {

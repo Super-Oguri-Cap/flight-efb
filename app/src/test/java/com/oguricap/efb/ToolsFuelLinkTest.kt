@@ -8,6 +8,7 @@ import com.oguricap.efb.ui.tools.ToolsPage
 import com.oguricap.efb.ui.tools.ToolsViewModel
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,17 +41,28 @@ class ToolsFuelLinkTest {
         ]}
     """.trimIndent()
 
-    /** 记录所有 eval；`reply` 决定同步回调什么（等价于 evaluateJavascript 的返回值）。 */
+    /**
+     * 记录所有 eval；`reply` 决定同步回调什么（等价于 evaluateJavascript 的返回值）。
+     *
+     * @param alive false 模拟「WebView 已销毁」：post 被拒，回调永远不会来。
+     *   放在第一个参数位，`reply` 留在最后，这样 `FakeChannel { js -> ... }` 这种尾随写法仍然成立。
+     */
     private class FakeChannel(
+        private val alive: Boolean = true,
         private val reply: (js: String) -> String? = { null },
     ) : JsChannel {
         val evals = ArrayList<String>()
+        override val isAlive: Boolean get() = alive
+
         override fun eval(js: String) {
+            if (!alive) return
             evals += js
         }
 
         override fun eval(js: String, onResult: (String) -> Unit) {
+            if (!alive) return
             evals += js
+            // 只有活着才回调：这正是真机上官闭 WebView 之后的行为
             reply(js)?.let(onResult)
         }
     }
@@ -168,5 +180,56 @@ class ToolsFuelLinkTest {
 
         assertEquals(673, vm.currentDistNM())
         assertTrue("来源应当标明航路库", vm.currentDistSource()!!.startsWith("航路库"))
+    }
+
+    /**
+     * 通道背后的 WebView 已销毁时，`refreshPlans` 不能把 `plansBusy` 卡在 true。
+     *
+     * 真机上这一步是这样坏的：`refreshPlans` 先置 `plansBusy = true` 再 eval，
+     * WebView 被 destroy 之后 post 被拒、回调永远不来，`plansBusy` 永久为真，
+     * 之后每次 `refreshPlans` 都只走「记一个 dirty 就返回」的分支，
+     * 方案读取彻底失效（症状：航路生成完，油量页再也读不到距离）。
+     */
+    @Test
+    fun deadChannelDoesNotLeavePlansBusyStuck() {
+        val vm = vm()
+        // 一个「已经销毁」的通道：eval 不执行、回调不来
+        val dead = FakeChannel(reply = { _ -> null }, alive = false)
+        vm.attachChannel(ToolsPage.Route, dead)
+
+        vm.refreshPlans()
+
+        assertFalse("通道已死时不能停在「正在读取」", vm.plansBusy)
+
+        // 换一个活通道，必须能立刻正常读方案 —— 卡住的实现会在这里读到 null
+        val alive = FakeChannel { js ->
+            if (js.contains("getPlansJson")) JSONObject.quote(plansJson) else null
+        }
+        vm.detachChannel(ToolsPage.Route, dead)
+        vm.attachChannel(ToolsPage.Route, alive)
+        vm.refreshPlans()
+        assertEquals(673, vm.currentDistNM())
+    }
+
+    /** 解绑通道时必须把「正在读取」的中间状态清掉，否则页面重建后再也读不到方案。 */
+    @Test
+    fun detachChannelResetsPlanFetchState() {
+        val vm = vm()
+        // 一个永远不回结果、但报告自己活着的通道，用来把 plansBusy 顶在 true
+        val silent = FakeChannel(reply = { _ -> null }, alive = true)
+        vm.attachChannel(ToolsPage.Route, silent)
+        vm.refreshPlans()
+        assertTrue("发起后应处于读取中", vm.plansBusy)
+
+        vm.detachChannel(ToolsPage.Route, silent)
+
+        assertFalse("解绑后必须复位", vm.plansBusy)
+
+        val alive = FakeChannel { js ->
+            if (js.contains("getPlansJson")) JSONObject.quote(plansJson) else null
+        }
+        vm.attachChannel(ToolsPage.Route, alive)
+        vm.refreshPlans()
+        assertEquals(673, vm.currentDistNM())
     }
 }

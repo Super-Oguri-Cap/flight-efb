@@ -27,6 +27,21 @@ data class PatchSpec(
     val wrapScript: Boolean,
 )
 
+/**
+ * 一条「结果区选择器」契约。
+ *
+ * shim 的 `getPlans()` 靠这些选择器从页面 DOM 里读方案卡片。它们只以字符串形式
+ * 存在于 `efb_shim.js`，页面改类名时不会有人报错，只会让方案读成空数组、
+ * 油量页距离填不进去。所以把它们写进配置，由出包期门禁逐条断言。
+ *
+ * @param selector 选择器原文，仅用于失败信息，让人一眼看出对应 shim 的哪一行
+ * @param literals 该选择器在 HTML 里必现的字面量，每个至少命中 1 次
+ */
+data class ResultSelector(
+    val selector: String,
+    val literals: List<String>,
+)
+
 /** 一个网页工具的全部静态契约。 */
 data class ToolSpec(
     val asset: String,
@@ -34,6 +49,7 @@ data class ToolSpec(
     val versionRegex: String,
     val requiredConsts: List<String>,
     val requiredLiterals: List<String>,
+    val resultSelectors: List<ResultSelector>,
     val patches: List<PatchSpec>,
     val distanceJs: String,
 )
@@ -102,6 +118,7 @@ object ToolContract {
                 versionRegex = o.optString("versionRegex", ""),
                 requiredConsts = o.optJSONArray("requiredConsts").toStringList(),
                 requiredLiterals = o.optJSONArray("requiredLiterals").toStringList(),
+                resultSelectors = parseResultSelectors(o.optJSONArray("resultSelectors")),
                 patches = patches,
                 distanceJs = runtime?.optString("distanceJs", "").orEmpty(),
             )
@@ -138,6 +155,19 @@ object ToolContract {
         if (this == null) return emptyList()
         val out = ArrayList<String>(length())
         for (i in 0 until length()) out += optString(i, "")
+        return out
+    }
+
+    private fun parseResultSelectors(arr: org.json.JSONArray?): List<ResultSelector> {
+        if (arr == null) return emptyList()
+        val out = ArrayList<ResultSelector>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            out += ResultSelector(
+                selector = o.optString("selector", ""),
+                literals = o.optJSONArray("literals").toStringList(),
+            )
+        }
         return out
     }
 
@@ -214,9 +244,10 @@ object ToolContract {
 
     /**
      * 对**原始** HTML（未打补丁）做静态断言：
-     * 7 个顶层 const 各 1 次、必需字面量各 1 次、单文件自包含、版本正则可提取。
+     * 顶层 const 各 1 次、必需字面量各 1 次、结果区选择器必现、单文件自包含、版本正则可提取。
      *
-     * 出包期 `ToolAssetsContractTest` 与运行期 `prepareHtml` 共用这份实现。
+     * 出包期 `ToolAssetsContractTest` 与运行期 `prepareHtml` 共用这份实现 —— 一份代码两个关口，
+     * 不会出现「测试过了、运行期还在用另一套判断」的分叉。
      */
     fun verifySource(html: String, spec: ToolSpec) {
         val text = normalize(html)
@@ -228,6 +259,17 @@ object ToolContract {
         for (needle in spec.requiredLiterals) {
             val n = countOf(text, needle)
             check(n == 1) { "${spec.asset} 里 `$needle` 命中 $n 次（要求 1 次）" }
+        }
+        // shim 的 getPlans() 靠这些选择器读方案卡片：命中了未必是那一处，
+        // 但一处都没有就一定读不到，所以这里只卡「至少 1 次」
+        for (rs in spec.resultSelectors) {
+            for (needle in rs.literals) {
+                val n = countOf(text, needle)
+                check(n >= 1) {
+                    "${spec.asset} 里结果区选择器 `${rs.selector}` 依赖的 `$needle` 命中 $n 次" +
+                        "（要求至少 1 次，否则 shim 的 getPlans() 会读成空结果）"
+                }
+            }
         }
         for (bad in FORBIDDEN) {
             check(!text.contains(bad)) { "${spec.asset} 出现外链/模块化标志 `$bad`，不再是单文件自包含" }

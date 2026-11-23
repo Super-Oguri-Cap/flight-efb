@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.oguricap.efb.data.Chart
@@ -31,6 +33,7 @@ import com.oguricap.efb.ui.reader.ReaderScreen
 import com.oguricap.efb.ui.search.SearchScreen
 import com.oguricap.efb.ui.settings.SettingsScreen
 import com.oguricap.efb.ui.tools.ToolsScreen
+import com.oguricap.efb.ui.tools.ToolsViewModel
 
 // 顶层三个标签，每个标签维护自己的页面栈。
 // 页面栈全部用字符串保存（rememberSaveable），Activity 重建后能回到原来的位置。
@@ -97,12 +100,18 @@ fun EfbApp(
 
     // 阅读页只保存文件路径，重建后按路径从当前机场的图里找回 Chart；
     // 从搜索结果直接打开时机场图没在手边，退回索引全局查询
-    val readerChart: Chart? = if (chartPage == PAGE_READER && chartFile.isNotEmpty()) {
-        vm.currentCharts.firstOrNull { it.file == chartFile }
-            ?: vm.chartByPath(chartFile)
-    } else {
-        null
+    // 阅读页要的 Chart 由 ViewModel 持有状态：点进来时对象就在手上（openReaderChart），
+    // 进程重建后只剩路径，交给 resolveReaderChart 在 IO 线程查库补回。
+    // 组合期不查库 —— 原来这里直接调 chartByPath()，缓存未命中就是一次主线程 SQLite 查询。
+    LaunchedEffect(chartPage, chartFile) {
+        if (chartPage != PAGE_READER) {
+            vm.clearReaderChart()
+            return@LaunchedEffect
+        }
+        if (chartFile.isEmpty()) return@LaunchedEffect
+        if (vm.readerChart?.file != chartFile) vm.resolveReaderChart(chartFile)
     }
+    val readerChart: Chart? = if (chartPage == PAGE_READER) vm.readerChart else null
 
     fun chartBack() {
         // 返回时一定要退全屏，否则标签栏会一直藏着
@@ -174,6 +183,7 @@ fun EfbApp(
                             chartPage = PAGE_AIRPORT
                         },
                         onOpenChart = { chart ->
+                            vm.openReaderChart(chart)
                             chartFile = chart.file
                             readerFromSearch = true
                             chartPage = PAGE_READER
@@ -186,6 +196,7 @@ fun EfbApp(
                         icao = chartIcao,
                         onBack = { chartBack() },
                         onOpenChart = { chart ->
+                            vm.openReaderChart(chart)
                             chartFile = chart.file
                             readerFromSearch = false
                             chartPage = PAGE_READER
@@ -200,24 +211,42 @@ fun EfbApp(
                                 onBack = { chartBack() },
                                 onFullscreenChange = { immersive = it },
                             )
+                        } else if (vm.readerChartResolving) {
+                            // 进程重建后正在按路径补回这张图。这里必须给加载态：
+                            // 立刻弹回搜索页会让用户以为「刚才看的图没了」
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         } else {
-                            // 重建后当前机场的图还没取回，或索引已变；
-                            // 退回机场页而不是显示空白阅读页
+                            // 路径在索引里找不到（索引换了、图被删了），退回搜索页而不是空白阅读页
                             LaunchedEffect(Unit) { chartPage = PAGE_SEARCH }
                         }
                     }
 
-                    PAGE_SETTINGS -> SettingsScreen(
-                        vm = vm,
-                        exclusivePhases = referenceVm.exclusivePhases,
-                        onToggleExclusive = { referenceVm.applyExclusivePhases(it) },
-                        storageGranted = storageGranted,
-                        onOpenSystemSettings = onRequestStorage,
-                        // 设置页里可以直接换目录，不必重跑整套引导
-                        onPickRoot = onPickRoot,
-                        onRerunOnboarding = onRestartOnboarding,
-                        onBack = { chartBack() },
-                    )
+                    PAGE_SETTINGS -> {
+                        // 工具页的 ViewModel 与 `ToolsScreen` 里 `viewModel()` 拿到的是**同一个实例**：
+                        // 两处都没指定 owner，默认落在 Activity 的 ViewModelStore 上。
+                        // 所以在设置页里清掉的缓存，就是工具页当前正在用的那一份，
+                        // 不需要另开作用域或做跨 VM 通信。
+                        // 放在本分支内取，而不是提到 EfbApp 顶层：只有真的打开设置页
+                        // 才会创建工具 ViewModel，不进设置页就不必为它付初始化开销。
+                        val toolsVm: ToolsViewModel = viewModel()
+                        SettingsScreen(
+                            vm = vm,
+                            toolsVm = toolsVm,
+                            exclusivePhases = referenceVm.exclusivePhases,
+                            onToggleExclusive = { referenceVm.applyExclusivePhases(it) },
+                            storageGranted = storageGranted,
+                            onOpenSystemSettings = onRequestStorage,
+                            // 设置页里可以直接换目录，不必重跑整套引导
+                            onPickRoot = onPickRoot,
+                            onRerunOnboarding = onRestartOnboarding,
+                            onBack = { chartBack() },
+                        )
+                    }
                 }
 
                 is Tab.Checklists -> when (checklistPage) {

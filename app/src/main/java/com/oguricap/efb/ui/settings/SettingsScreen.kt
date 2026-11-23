@@ -65,6 +65,7 @@ import com.oguricap.efb.diag.AppLog
 import com.oguricap.efb.diag.LogExporter
 import com.oguricap.efb.prefs.Settings
 import com.oguricap.efb.ui.ChartViewModel
+import com.oguricap.efb.ui.tools.ToolsViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -87,6 +88,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     vm: ChartViewModel,
+    toolsVm: ToolsViewModel,
     exclusivePhases: Boolean,
     onToggleExclusive: (Boolean) -> Unit,
     storageGranted: Boolean,
@@ -100,6 +102,12 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var confirmClearLogs by remember { mutableStateOf(false) }
+    // 清空工具页导入记录前的确认：这一步会删掉本机缓存，导回去要重新解析几十兆数据
+    var confirmClearImport by remember { mutableStateOf(false) }
+
+    // 进设置页时刷新一次缓存体积：ViewModel 挂在 Activity 上，
+    // 只在 init 里量一次的话，用户刚导入完回来看还是旧数字
+    LaunchedEffect(Unit) { toolsVm.refreshCacheSize() }
 
     // 每次进设置页都重新统计：ViewModel 挂在 Activity 上不会随页面销毁，
     // 只在 init 里读一次的话，用户复现完问题回来看体积还是旧数字
@@ -177,9 +185,9 @@ fun SettingsScreen(
                 InfoRow(
                     title = "索引来源",
                     desc = if (vm.indexOrigin == Settings.ORIGIN_SCAN) {
-                        "本机扫描生成 · 共 ${chartCount(vm)} 张"
+                        "本机扫描生成 · 共 ${vm.chartTotal} 张"
                     } else {
-                        "APK 预置索引（620 KB）· 共 ${chartCount(vm)} 张"
+                        "APK 预置索引（620 KB）· 共 ${vm.chartTotal} 张"
                     },
                     trailing = {
                         StatusPill(
@@ -201,6 +209,31 @@ fun SettingsScreen(
                             StatusPill("已授权", Tone.Ok)
                         } else {
                             SmallButton(text = "去授权", onClick = onOpenSystemSettings)
+                        }
+                    },
+                )
+                CardDivider()
+                // 工具页导入的导航数据在本机有一份解析结果缓存（数十兆）。
+                // 之前这份缓存没有任何清理入口，只能靠重新导入覆盖或卸载应用。
+                InfoRow(
+                    title = "工具页数据缓存",
+                    desc = if (toolsVm.cacheSize > 0) {
+                        formatBytes(toolsVm.cacheSize) +
+                            " · 导入的导航数据解析结果，清除后不影响你自己的文件"
+                    } else {
+                        "还没有缓存。导入导航数据后会在这里生成一份解析结果，省去每次重解析"
+                    },
+                    trailing = {
+                        if (toolsVm.cacheSize > 0) {
+                            OutlinedButton(
+                                onClick = { confirmClearImport = true },
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                modifier = Modifier.height(34.dp),
+                            ) {
+                                Text("清除", style = MaterialTheme.typography.labelLarge)
+                            }
+                        } else {
+                            StatusPill("无缓存", Tone.Neutral)
                         }
                     },
                 )
@@ -292,6 +325,33 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmClearLogs = false }) { Text("取消") }
+            },
+        )
+    }
+
+    if (confirmClearImport) {
+        AlertDialog(
+            onDismissRequest = { confirmClearImport = false },
+            title = { Text("清除工具页数据缓存？") },
+            text = {
+                Text(
+                    "会删掉 App 记下的导入位置（" + toolsVm.rememberedCount +
+                        " 条）与本机缓存（" + formatBytes(toolsVm.cacheSize) + "），" +
+                        "不影响你自己下载的导航数据文件。\n\n" +
+                        "清除后下一次进工具页需要重新导入一次导航数据，" +
+                        "网站里已经生成好的航路也会被清空。"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClearImport = false
+                        toolsVm.forgetImported()
+                    },
+                ) { Text("清除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearImport = false }) { Text("取消") }
             },
         )
     }
@@ -703,10 +763,20 @@ private fun VersionFooter() {
 
 private const val LOG_TAG = "EFB/SETTINGS"
 
-private fun chartCount(vm: ChartViewModel): Int =
-    vm.lastScan?.charts?.size ?: vm.index?.chartCount() ?: 0
-
 private fun copyToClipboard(context: Context, label: String, value: String) {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText(label, value))
+}
+
+/**
+ * 把字节数写成一眼能读的大小。
+ *
+ * 缓存是数十兆量级，用 MB 一位小数；小于 1 MB 时退回 KB，
+ * 免得刚清完又显示成「0.0 MB」看不出到底还有没有。
+ */
+private fun formatBytes(bytes: Long): String = when {
+    bytes <= 0L -> "0 KB"
+    bytes < 1024L -> bytes.toString() + " B"
+    bytes < 1024L * 1024L -> (bytes / 1024L).toString() + " KB"
+    else -> String.format(java.util.Locale.US, "%.1f MB", bytes / 1024.0 / 1024.0)
 }

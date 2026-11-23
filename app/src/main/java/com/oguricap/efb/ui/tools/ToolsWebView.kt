@@ -12,14 +12,25 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.oguricap.efb.diag.AppLog
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "EFB/JS"
 
@@ -54,17 +65,61 @@ fun ToolsWebView(
 ) {
     val context = LocalContext.current
 
-    // WebView 懒建、只建一次；页面在第一次被挂上去之前就已装载完成
-    val runtime = remember(context) { ToolWebRuntime(context, vm, onEvent, onPickFiles, onPickFolder) }
+    // 网页资源由 ViewModel 在 IO 线程准备：读 241 KB HTML、打补丁、静态断言、算 SHA256。
+    // 这里只负责发起，准备好之后再交给 WebView 装载。
+    LaunchedEffect(vm.page) { vm.ensurePrepared(vm.page) }
 
-    AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = { ctx -> FrameLayout(ctx) },
-        update = { frame ->
-            runtime.mount(frame, vm.page)
-            runtime.showOnly(frame, vm.page)
-        },
-    )
+    // runtime 只按 context 记住：换子页不能重建它，否则两个常驻 WebView 会被一起销毁，
+    // 「切到油量页再切回航路页，结果还在」这条就没了。
+    val runtime = remember(context) {
+        ToolWebRuntime(context, vm, onEvent, onPickFiles, onPickFolder)
+    }
+
+    // 读这几个状态是为了在资源就绪/失败时触发重组，让下面的 update 再跑一次
+    val currentPrepared = vm.preparedPage(vm.page)
+    val preparing = vm.isPreparing(vm.page)
+    val prepareFailure = vm.prepareError(vm.page)
+
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx -> FrameLayout(ctx) },
+            update = { frame ->
+                // 资源还没就绪时 mount 会直接返回，等状态变化后这次 update 会重跑
+                runtime.mount(frame, vm.page)
+                runtime.showOnly(frame, vm.page)
+            },
+        )
+
+        // 当前子页的网页还没就绪：盖一层加载态。
+        // 只在**当前页**没有可用页面时出现，已装载好的另一页不受影响。
+        if (currentPrepared == null) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (prepareFailure != null) {
+                        Text(
+                            text = "网页资源不完整，请检查安装包\n" + prepareFailure,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(24.dp),
+                        )
+                    } else if (preparing) {
+                        CircularProgressIndicator()
+                    } else {
+                        // 既没备好也不在准备：正常情况下不会停在这里，
+                        // 真停住说明 ensurePrepared 没被调到，至少给一句可见的说明
+                        Text(
+                            text = "正在准备网页资源…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     DisposableEffect(runtime) {
         onDispose { runtime.destroyAll() }
@@ -74,8 +129,8 @@ fun ToolsWebView(
 /**
  * WebView 的创建与销毁都收在这里，Composable 只负责把当前页挂进容器。
  *
- * 页面资源在首次创建时读一次就缓存住：`route_gen.html` 有 200K+ 字符，
- * 每次切子页重新读盘 + 打补丁会明显卡一下。
+ * 页面资源的读取与补丁**不在这里做**：那是 IO 重活，由 [ToolsViewModel.ensurePrepared]
+ * 在后台完成，这里只取现成结果去装载。这样主线程只剩「创建 WebView + loadDataWithBaseURL」。
  */
 private class ToolWebRuntime(
     private val context: Context,
@@ -85,7 +140,12 @@ private class ToolWebRuntime(
     private val onPickFolder: (String) -> Unit,
 ) {
 
-    private class Entry(val web: WebView, val channel: JsChannel)
+    private class Entry(
+        val web: WebView,
+        val channel: JsChannel,
+        /** 通道是否还能执行脚本。销毁 WebView 之前必须先置 false，见 [destroyAll]。 */
+        val alive: AtomicBoolean,
+    )
 
     private val entries = HashMap<ToolsPage, Entry?>()
 
@@ -95,6 +155,8 @@ private class ToolWebRuntime(
     /**
      * 确保 [page] 的 WebView 存在并挂进 [frame]。只挂一次，之后切页复用同一个实例。
      * 挂进去时先设成 GONE，由 [showOnly] 决定谁可见。
+     *
+     * 网页资源还没准备好时直接返回：等 ViewModel 那边状态变化，Compose 会再调一次。
      */
     fun mount(frame: ViewGroup, page: ToolsPage) {
         val web = ensureView(page) ?: return
@@ -128,7 +190,10 @@ private class ToolWebRuntime(
 
     private fun ensureView(page: ToolsPage): WebView? {
         if (entries.containsKey(page)) return entries[page]?.web
-        val entry = runCatching { create(page) }
+        // 资源还没就绪就不建：这里返回 null，等 ViewModel 那边准备好后再来一次。
+        // 不把「还没好」记成 null 条目，否则准备好之后就再也不会建了。
+        val prepared = vm.preparedPage(page) ?: return null
+        val entry = runCatching { create(page, prepared) }
             .onFailure {
                 AppLog.e(TAG, "创建 ${page.label} 的 WebView 失败", it)
                 vm.onPageLoadFailed(it.message ?: it.javaClass.simpleName)
@@ -138,16 +203,7 @@ private class ToolWebRuntime(
         return entry?.web
     }
 
-    private fun create(page: ToolsPage): Entry {
-        val asset = when (page) {
-            ToolsPage.Route -> ToolContract.ROUTE_ASSET
-            ToolsPage.Fuel -> ToolContract.FUEL_ASSET
-        }
-        val config = ToolContract.loadConfig(context)
-        val spec = config.tools[asset] ?: error("配置里没有 $asset")
-        // 读 assets → 内存锚点替换 → 静态断言；失败会抛，由 ensureView 的 runCatching 兜住
-        val html = ToolContract.prepareHtml(context, spec)
-
+    private fun create(page: ToolsPage, prepared: PreparedToolPage): Entry {
         val web = WebView(context)
         web.settings.apply {
             javaScriptEnabled = true
@@ -167,13 +223,23 @@ private class ToolWebRuntime(
             mediaPlaybackRequiresUserGesture = true
         }
 
+        // 通道存活标志。WebView.destroy() 之后 post 一律被拒，回调永远不会来，
+        // 依赖回调推进状态的地方会永久悬挂。这里显式告诉调用方「别再发起请求了」。
+        val alive = AtomicBoolean(true)
         val channel = object : JsChannel {
+            override val isAlive: Boolean get() = alive.get()
+
             override fun eval(js: String) {
-                web.post { web.evaluateJavascript(js, null) }
+                if (!alive.get()) return
+                web.post { if (alive.get()) web.evaluateJavascript(js, null) }
             }
 
             override fun eval(js: String, onResult: (String) -> Unit) {
-                web.post { web.evaluateJavascript(js) { result -> onResult(result) } }
+                if (!alive.get()) return
+                web.post {
+                    if (!alive.get()) return@post
+                    web.evaluateJavascript(js) { result -> if (alive.get()) onResult(result) }
+                }
             }
         }
 
@@ -239,6 +305,9 @@ private class ToolWebRuntime(
             ): Boolean {
                 AppLog.e(TAG, "${page.label} 渲染进程终止（crashed=${detail?.didCrash()}）")
                 val frame = view?.parent as? ViewGroup
+                // 先掐断通道再销毁：漏了这一步，排队中的 evaluateJavascript 回调永远不会来，
+                // ViewModel 里依赖回调复位的那几个标志就会永久悬挂
+                alive.set(false)
                 runCatching { vm.detachChannel(page, channel) }
                 runCatching { frame?.removeView(view) }
                 runCatching { view?.destroy() }
@@ -270,14 +339,17 @@ private class ToolWebRuntime(
         }
 
         // baseUrl 在前、data 在后；页面里的相对引用只做同源占位，不联网
-        web.loadDataWithBaseURL(spec.baseUrl, html, "text/html", "UTF-8", null)
-        AppLog.i(TAG, "${page.label} 已装载：${html.length} 字符")
-        return Entry(web, channel)
+        web.loadDataWithBaseURL(prepared.baseUrl, prepared.html, "text/html", "UTF-8", null)
+        AppLog.i(TAG, "${page.label} 已装载：${prepared.html.length} 字符")
+        return Entry(web, channel, alive)
     }
 
     fun destroyAll() {
         for ((page, entry) in entries) {
             if (entry == null) continue
+            // 先掐断通道：这里之后 post 一律被拒，所有在飞的 eval 回调都不会再来，
+            // ViewModel 侧的 plansBusy 等标志靠 detachChannel 复位
+            entry.alive.set(false)
             // 用创建时那一份 channel 去解绑：detachChannel 是按引用比对的，
             // 随手 new 一个空实现传进去不会命中，会留下指向已销毁 WebView 的悬挂通道
             runCatching { vm.detachChannel(page, entry.channel) }

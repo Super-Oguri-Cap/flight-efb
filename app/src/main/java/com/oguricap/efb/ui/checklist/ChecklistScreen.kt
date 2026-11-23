@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -143,6 +145,28 @@ fun ChecklistListScreen(
             )
         },
     ) { padding ->
+        // 内置库还在后台解析（204 KB JSON）：先给加载态。
+        // 不加这一步的话，库未就绪时 checklists 是空列表，界面会显示成「一个机型都没有」，
+        // 看起来像数据丢了。
+        if (!vm.libraryReady) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                val failure = vm.libraryError
+                if (failure != null) {
+                    Text(
+                        text = "检查单数据读取失败：" + failure,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                } else {
+                    CircularProgressIndicator()
+                }
+            }
+            return@Scaffold
+        }
+
         // 自定义检查单单独成区放最上面：它们是用户自己复制/改过的，
         // 用到的概率远高于内置机型，混在「其他」里每次都要往下翻。
         val customs = vm.checklists.filter { vm.isCustom(it.id) }

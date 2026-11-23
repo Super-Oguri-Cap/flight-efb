@@ -92,6 +92,29 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
     var lastScan: ChartScanner.Result? by mutableStateOf(null)
         private set
 
+    // 当前索引里的航图总数。在 load() 的 IO 协程里数一次存下来，
+    // 设置页直接读这个状态 —— 组合期查库会触发 StrictMode 的 DiskReadViolation，
+    // 而设置页每次重组都会读到它，等于每次重组查一次库。
+    var indexChartTotal: Int by mutableStateOf(0)
+        private set
+
+    /** 界面上显示的航图张数：扫描结果优先，其次当前索引。纯状态读取，不碰磁盘。 */
+    val chartTotal: Int get() = lastScan?.charts?.size ?: indexChartTotal
+
+    // ---- 阅读页当前打开的航图 ----
+    //
+    // 阅读页需要 Chart 对象（标题、机场、图型），而导航栈里只存文件路径。
+    // 原来的做法是在组合期直接调 chartByPath()，缓存未命中时就是一次主线程 SQLite 查询。
+    // 现在改成两个入口：
+    //   openReaderChart(chart)  —— 搜索页/机场页点进来，对象在手上，零 IO
+    //   resolveReaderChart(path) —— 进程重建后只有路径，查库放到 IO 线程
+    var readerChart: Chart? by mutableStateOf(null)
+        private set
+
+    /** 正在按路径补回阅读页的图。重建后短暂为真，界面据此显示加载态而不是弹回搜索页。 */
+    var readerChartResolving: Boolean by mutableStateOf(false)
+        private set
+
     var specExportPath: String? by mutableStateOf(null)
         private set
 
@@ -112,20 +135,27 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
 
     fun load() {
         viewModelScope.launch {
+            // 打开索引与数张数放在同一段 IO 里：拆成两次 withContext 只是多一次线程切换，
+            // 分开写反而容易有人漏掉其中一次而把查询留在主线程
             val result = withContext(io) {
                 runCatching {
                     val app = getApplication<Application>()
                     val scanned = File(File(app.filesDir, "index"), IndexBuilder.SCAN_DB_NAME)
                     // 已经在本机扫描过就用扫描结果，否则用 APK 预置的索引
-                    if (settings.indexOrigin == Settings.ORIGIN_SCAN && scanned.isFile) {
-                        ChartIndex.open(scanned)
-                    } else {
-                        ChartIndex.open(IndexBuilder.installAsset(app))
+                    val opened = Perf.timed("db_open") {
+                        if (settings.indexOrigin == Settings.ORIGIN_SCAN && scanned.isFile) {
+                            ChartIndex.open(scanned)
+                        } else {
+                            ChartIndex.open(IndexBuilder.installAsset(app))
+                        }
                     }
+                    val total = opened.chartCount()
+                    opened to total
                 }
             }
-            result.onSuccess {
-                index = it
+            result.onSuccess { (opened, total) ->
+                index = opened
+                indexChartTotal = total
                 loadError = null
                 // 搜索框可能带着上次的输入，列表必须与它一致，
                 // 否则重启后会出现「框里有 ZBAA、列表却是全部机场」
@@ -209,8 +239,9 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
         airportScroll[icao] = index to offset
     }
 
-    // 按文件路径找回单张图：阅读页重建、搜索命中直接打开时用
-    fun chartByPath(path: String): Chart? {
+    // 按文件路径找回单张图。**只在 IO 线程调用**：缓存未命中时这是一次 SQLite 查询。
+    // 组合期要拿 Chart 一律走 readerChart 状态，不要直接调这个。
+    private fun chartByPath(path: String): Chart? {
         val idx = index ?: return null
         return chartByPathCache.get(path) ?: runCatching { idx.chartByFile(path) }
             .getOrNull()
@@ -218,6 +249,46 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val chartByPathCache = object : androidx.collection.LruCache<String, Chart>(64) {}
+
+    /**
+     * 打开阅读页：调用方手里已经有 Chart 对象（搜索页、机场页点进来的都是这样）。
+     * 只写状态，零 IO，可以在点击回调里直接调用。
+     */
+    fun openReaderChart(chart: Chart) {
+        readerChart = chart
+        readerChartResolving = false
+        // 顺手把缓存补上，重建后按路径找回时不用查库
+        chartByPathCache.put(chart.file, chart)
+    }
+
+    /**
+     * 按文件路径补回阅读页的图。
+     *
+     * 只有进程重建后导航栈里只剩下路径时才走这里 —— 查询放在 IO 线程，
+     * 界面在 [readerChartResolving] 为真期间显示加载态。
+     */
+    fun resolveReaderChart(path: String) {
+        val cached = chartByPathCache.get(path)
+        if (cached != null) {
+            readerChart = cached
+            readerChartResolving = false
+            return
+        }
+        readerChartResolving = true
+        viewModelScope.launch {
+            val found = withContext(io) { chartByPath(path) }
+            // 期间用户可能已经返回或改开了别的图，这里只认当前请求的那条路径
+            if (readerChartResolving) {
+                readerChart = found
+                readerChartResolving = false
+            }
+        }
+    }
+
+    fun clearReaderChart() {
+        readerChart = null
+        readerChartResolving = false
+    }
 
     fun openAirport(icao: String) {
         currentAirport = null
@@ -328,14 +399,24 @@ class ChartViewModel(app: Application) : AndroidViewModel(app) {
                 // 先把新库打开拿到引用，成功之后再关旧的并落盘设置。
                 // 反过来做的话，新库打不开时 index 会指向已关闭的数据库，
                 // 之后每次查询都抛 IllegalStateException。
-                val opened = runCatching { ChartIndex.open(pair.second) }
+                // 打开与关闭都必须在 IO 线程：ChartIndex.open 是一次 openDatabase，
+                // close 要等正在跑的查询收尾，留在主线程就是一次 DiskReadViolation。
+                val opened = withContext(io) {
+                    runCatching { Perf.timed("db_open_scan") { ChartIndex.open(pair.second) } }
+                }
                 opened.onFailure {
                     rootError = "索引已生成但无法打开：" + (it.message ?: it.toString())
                     return@onSuccess
                 }
+                val next = opened.getOrThrow()
                 val previous = index
-                index = opened.getOrThrow()
-                previous?.close()
+                // 先换引用再关旧库：任何时刻 index 都不会指向一个已关闭的库
+                index = next
+                indexChartTotal = withContext(io) {
+                    val total = next.chartCount()
+                    previous?.close()
+                    total
+                }
                 settings.chartRoot = root.absolutePath
                 settings.indexOrigin = Settings.ORIGIN_SCAN
                 chartRoot = root.absolutePath

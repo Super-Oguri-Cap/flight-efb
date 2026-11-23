@@ -13,6 +13,28 @@
         "a.click()",
         "id=\"fileNav\""
       ],
+      "resultSelectors": [
+        {
+          "selector": ".overview .rt",
+          "literals": ["class=\"overview\"", "class=\"rt\""]
+        },
+        {
+          "selector": ".plan",
+          "literals": ["class=\"plan"]
+        },
+        {
+          "selector": ".pcopy[data-copy]",
+          "literals": ["class=\"pcopy\"", "data-copy"]
+        },
+        {
+          "selector": "pre.proute",
+          "literals": ["<pre class=\"proute\""]
+        },
+        {
+          "selector": ".pdist",
+          "literals": ["class=\"pdist\""]
+        }
+      ],
       "patches": [
         {
           "id": "bridge",

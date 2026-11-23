@@ -1,6 +1,8 @@
 package com.oguricap.efb.data
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,10 +20,25 @@ class ReferenceLibrary private constructor(
         @Volatile
         private var cached: ReferenceLibrary? = null
 
+        /**
+         * 同步取库。**只给后台线程与测试用**：首次调用要读 204 KB JSON 并解析，
+         * 放主线程就是一次 DiskReadViolation。界面侧走 [load]。
+         *
+         * 并发安全靠这里的双重检查：第一个线程在 synchronized 里解析，
+         * 其余线程等锁之后直接拿 [cached]，所以整份数据只会解析一次。
+         */
         fun get(context: Context): ReferenceLibrary =
             cached ?: synchronized(this) {
                 cached ?: load(context).also { cached = it }
             }
+
+        /**
+         * 在 IO 线程取库，给 ViewModel 用。
+         *
+         * 复用 [get] 的双重检查缓存，所以并发调用（包括与同步调用混着来）都只解析一次。
+         */
+        suspend fun loadAsync(context: Context): ReferenceLibrary =
+            withContext(Dispatchers.IO) { get(context) }
 
         private fun load(context: Context): ReferenceLibrary {
             // 随附的文字版检查单单独一个文件：它来自用户自己的 PDF，

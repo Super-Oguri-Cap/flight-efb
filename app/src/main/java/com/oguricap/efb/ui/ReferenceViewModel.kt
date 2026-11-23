@@ -26,19 +26,50 @@ import java.io.IOException
 class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
 
     private val tag = "EFB/CHECKLIST"
-    private val library = ReferenceLibrary.get(app)
     private val settings = Settings(app)
     private val progressStore = ChecklistProgress(app)
     private val customStore = CustomChecklistStore(app)
 
+    /**
+     * 内置检查单与 QRH 的库。
+     *
+     * 解析要读 204 KB JSON，绝不能在构造期（主线程）做，所以这里是可空状态：
+     * 构造时起一个 IO 协程填充，界面在 [libraryReady] 为假期间显示加载态。
+     * 解析本身由 [ReferenceLibrary.loadAsync] 保证全局只做一次。
+     */
+    private var library by mutableStateOf<ReferenceLibrary?>(null)
+
+    /** 库是否已就绪。未就绪时界面显示加载态，不要拿空列表冒充「没有检查单」。 */
+    val libraryReady: Boolean get() = library != null
+
+    /** 加载失败的原因；null 表示没失败。 */
+    var libraryError: String? by mutableStateOf(null)
+        private set
+
     // 自定义检查单改动后要立刻刷新这个状态，界面才会跟着变
-    var customChecklists: List<AircraftChecklist> by mutableStateOf(customStore.list())
+    var customChecklists: List<AircraftChecklist> by mutableStateOf(emptyList())
         private set
 
     // 内置在前、自定义在后；自定义的 id 都是 custom_ 开头，靠它分流
-    val checklists: List<AircraftChecklist> get() = library.checklists + customChecklists
-    val qrh: QrhBook get() = library.qrh
+    val checklists: List<AircraftChecklist> get() = library?.checklists.orEmpty() + customChecklists
+    val qrh: QrhBook get() = library?.qrh ?: EMPTY_QRH
     val docs: List<ReferenceDoc> get() = ReferenceDocs.all
+
+    init {
+        viewModelScope.launch {
+            val loaded = runCatching { ReferenceLibrary.loadAsync(getApplication()) }
+            loaded.onSuccess {
+                library = it
+                libraryError = null
+            }.onFailure {
+                AppLog.e(tag, "检查单与 QRH 加载失败", it)
+                libraryError = it.message ?: it.javaClass.simpleName
+            }
+            // 自定义检查单是偏好里的一个小对象，量很小，但仍然在同一个后台协程里读，
+            // 免得构造期在主线程碰 SharedPreferences
+            customChecklists = customStore.list()
+        }
+    }
 
     var expandedPhases: Set<String> by mutableStateOf(emptySet())
         private set
@@ -91,7 +122,8 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun duplicateBuiltin(id: String): AircraftChecklist? {
-        val source = library.checklists.firstOrNull { it.id == id } ?: return null
+        // 只从内置库里找：库还没就绪时返回 null，界面上那条按钮的入参本来就是内置机型
+        val source = library?.checklists?.firstOrNull { it.id == id } ?: return null
         val copy = customStore.create(source)
         refreshCustom()
         return copy
@@ -290,5 +322,8 @@ class ReferenceViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         // 自定义检查单的 id 前缀，也是分流依据（CustomChecklistStore.create 生成）
         const val CUSTOM_PREFIX = "custom_"
+
+        // 库还没就绪时给界面的空 QRH：条数为 0、notice 为空，LazyColumn 照常可以组合
+        private val EMPTY_QRH = QrhBook(notice = "", sections = emptyList())
     }
 }

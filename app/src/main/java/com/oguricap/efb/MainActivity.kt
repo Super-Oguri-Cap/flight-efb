@@ -12,12 +12,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.core.view.doOnPreDraw
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.oguricap.efb.diag.AppLog
+import com.oguricap.efb.perf.Perf
 import com.oguricap.efb.ui.ChartViewModel
 import com.oguricap.efb.ui.EfbApp
 import com.oguricap.efb.ui.onboarding.OnboardingScreen
@@ -57,6 +59,13 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         storageGranted = hasStorageAccess()
+        // 首帧上屏后记一条 cold_start_to_first_frame。
+        // 用 doOnPreDraw 而不是 onResume：onResume 时还没画，量出来的数偏小；
+        // chunked 200 是为了合并掉连续几帧的 preDraw 回调，真正的「只记一次」
+        // 由 Perf.markFirstFrame 内部的起点判断兜住（起点被消费一次就不会再记）。
+        window.decorView.doOnPreDraw {
+            Perf.markFirstFrame()
+        }
         setContent {
             EfbTheme {
                 val vm: ChartViewModel = viewModel()

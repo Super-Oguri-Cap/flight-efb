@@ -3,11 +3,13 @@ package com.oguricap.efb.ui.tools
 import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.oguricap.efb.diag.AppLog
+import com.oguricap.efb.perf.Perf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,14 +60,69 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     /** 上次导入过的 SAF Uri（只是路径，不含任何数据内容）。 */
-    var rememberedCount by mutableStateOf(
-        if (importer.treeUri() != null) 1 else importer.persistedUris().size
-    )
+    var rememberedCount by mutableStateOf(0)
         private set
 
     /** 本机缓存的数据集体积（字节）。0 表示还没缓存过。 */
-    var cacheSize by mutableStateOf(cache.sizeBytes())
+    var cacheSize by mutableStateOf(0L)
         private set
+
+    // ---- 网页资源准备 ----
+    //
+    // 读 assets、打补丁、静态断言与 SHA256 都是磁盘与 CPU 的重活（航路页 241 KB），
+    // 全部在这个状态里由 IO 线程完成后交给 WebView 装载。
+    private val preparedPages = mutableStateMapOf<ToolsPage, PreparedToolPage>()
+    private val prepareErrors = mutableStateMapOf<ToolsPage, String>()
+    private val preparingPages = mutableStateMapOf<ToolsPage, Boolean>()
+
+    /** 某个子页的网页资源已经准备好了。WebView 只在这之后才创建。 */
+    fun preparedPage(page: ToolsPage): PreparedToolPage? = preparedPages[page]
+
+    /** 某个子页的网页资源准备失败的原因；null 表示没失败或还没开始。 */
+    fun prepareError(page: ToolsPage): String? = prepareErrors[page]
+
+    /** 某个子页的网页资源正在准备。界面据此显示加载态。 */
+    fun isPreparing(page: ToolsPage): Boolean = preparingPages[page] == true
+
+    /**
+     * 在 IO 线程准备某个子页的网页资源。重复调用安全：已备好或正在准备时直接返回。
+     *
+     * 这里只做「读 + 补丁 + 断言」，不碰 WebView —— WebView 只能在主线程创建，
+     * 装载时直接从 [preparedPage] 取现成的 HTML。
+     */
+    fun ensurePrepared(page: ToolsPage) {
+        if (preparedPages.containsKey(page) || preparingPages[page] == true) return
+        preparingPages[page] = true
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val app = getApplication<Application>()
+                    val asset = when (page) {
+                        ToolsPage.Route -> ToolContract.ROUTE_ASSET
+                        ToolsPage.Fuel -> ToolContract.FUEL_ASSET
+                    }
+                    val config = ToolContract.loadConfig(app)
+                    val spec = config.tools[asset] ?: error("配置里没有 $asset")
+                    Perf.timed("tool_prepare_${page.name.lowercase()}") {
+                        PreparedToolPage(
+                            page = page,
+                            baseUrl = spec.baseUrl,
+                            html = ToolContract.prepareHtml(app, spec),
+                        )
+                    }
+                }
+            }
+            preparingPages[page] = false
+            result.onSuccess {
+                preparedPages[page] = it
+                AppLog.i(tag, "${page.label} 网页资源就绪：${it.html.length} 字符")
+            }.onFailure {
+                AppLog.e(tag, "${page.label} 网页资源准备失败", it)
+                prepareErrors[page] = it.message ?: it.javaClass.simpleName
+                loadError = "网页资源不完整，请检查安装包"
+            }
+        }
+    }
 
     /**
      * 网页里当前是否已经载着数据。
@@ -155,9 +212,33 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
     private var fuelRetried = false
 
     init {
-        reloadSaved()
-        ToolContract.logVersions(app)
+        // 构造函数跑在主线程。下面这些全是磁盘操作：读航路库偏好、读两份 HTML 算 SHA256、
+        // 读导入记录、stat 缓存文件。全部塞进同一段 IO，一次线程切换做完。
+        // RouteStore 首次访问要同步解析 SharedPreferences 的 XML，放在这里就是为了避开主线程；
+        // 之后的保存/改名/删除都在偏好已加载之后，留在调用点同步执行。
+        viewModelScope.launch {
+            val loaded = withContext(Dispatchers.IO) {
+                ToolContract.logVersions(getApplication())
+                val savedList = routeStore.list()
+                val active = routeStore.activeId()
+                val remembered = if (importer.treeUri() != null) 1 else importer.persistedUris().size
+                val bytes = cache.sizeBytes()
+                InitSnapshot(savedList, active, remembered, bytes)
+            }
+            saved = loaded.saved
+            activeId = loaded.activeId
+            rememberedCount = loaded.remembered
+            cacheSize = loaded.cacheBytes
+        }
     }
+
+    /** [init] 在 IO 线程一次性读出来的那批状态，回到主线程再赋给 Compose 状态。 */
+    private data class InitSnapshot(
+        val saved: List<SavedRoute>,
+        val activeId: String?,
+        val remembered: Int,
+        val cacheBytes: Long,
+    )
 
     // ---------------------------------------------------------------- 通道
 
@@ -176,14 +257,31 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
                 // 页面销毁 = 网页里的数据集一起没了。下次回来要按记住的 Uri 重新导入，
                 // 否则「切到航图再切回工具」就变成一张空页面。
                 routeHasData = false
+                // 在飞的 getPlansJson 回调随通道一起没了。不复位这两个标志的话，
+                // plansBusy 会永久停在 true，之后每次 refreshPlans 都只记一个 dirty 就返回，
+                // 方案读取彻底失效（真机上表现为「航路生成完，油量页再也读不到距离」）。
+                resetPlanFetchState()
             }
 
             ToolsPage.Fuel -> if (fuelChannel === channel) {
                 fuelChannel = null
                 fuelReady = false
                 fuelFilledNM = null
+                resetPlanFetchState()
             }
         }
+    }
+
+    /**
+     * 清掉「正在读方案」的中间状态。
+     *
+     * 只有读方案这件事挂在这两个标志上，所以通道一换、页面一重建就必须一起清：
+     * 它们描述的是「某个通道上正在进行的一次读取」，通道没了，那次读取就不存在了。
+     */
+    private fun resetPlanFetchState() {
+        plansBusy = false
+        plansDirty = false
+        pendingFuelFill = false
     }
 
     /** 网页 onPageFinished：桥已经就绪，可以安全地调用 __EFB__。 */
@@ -225,6 +323,10 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun onRendererGone(page: ToolsPage) {
         AppLog.w(tag, "${page.label} 渲染进程被回收，页面已重建")
+        // 重建的页面里什么都还没读：把「正在读方案」的中间状态清干净，
+        // 否则重建后第一次 refreshPlans 会看到 plansBusy 还是 true 而直接放弃
+        resetPlanFetchState()
+        fuelRetried = false
         if (page == ToolsPage.Route) {
             // 强制走一次 maybeAutoRestore：重建的页面里数据集是空的
             routeHasData = false
@@ -258,23 +360,44 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun maybeAutoRestore() {
         if (routeHasData || importBusy || autoRestoreFailed) return
-        // 有缓存就直接用缓存：不用再读 25 MB 原文件、也不用重跑解析
-        if (cache.exists()) {
-            AppLog.i(tag, "发现本机缓存 ${cache.sizeBytes() / 1024} KB，直接恢复")
-            restoreFromCache()
-            return
+        // 判缓存存在、读偏好、量文件体积都是磁盘操作，统一挪到 IO。
+        // 原来这段直接在页面加载回调（主线程）里跑，StrictMode 会记三条。
+        viewModelScope.launch {
+            val plan = withContext(Dispatchers.IO) {
+                when {
+                    cache.exists() -> RestorePlan.FromCache(cache.sizeBytes())
+                    importer.treeUri() != null -> RestorePlan.Folder(importer.treeUri()!!)
+                    else -> {
+                        val uris = importer.persistedUris()
+                        if (uris.isEmpty()) null else RestorePlan.Files(uris)
+                    }
+                }
+            }
+            when (plan) {
+                is RestorePlan.FromCache -> {
+                    AppLog.i(tag, "发现本机缓存 ${plan.bytes / 1024} KB，直接恢复")
+                    restoreFromCache()
+                }
+                is RestorePlan.Folder -> {
+                    // 缓存没写成（比如上次被系统杀掉）时，退回「按记住的位置重新解析」。
+                    // 优先用记住的文件夹（一条记录就能重扫出整套数据），其次才是散文件。
+                    AppLog.i(tag, "没有缓存，按记住的文件夹重新扫描：${plan.uri}")
+                    importFolder(plan.uri)
+                }
+                is RestorePlan.Files -> {
+                    AppLog.i(tag, "没有缓存，按记住的 ${plan.uris.size} 个 Uri 重新导入")
+                    importNav(plan.uris)
+                }
+                null -> Unit
+            }
         }
-        // 缓存没写成（比如上次被系统杀掉）时，退回「按记住的位置重新解析」。
-        // 优先用记住的文件夹（一条记录就能重扫出整套数据），其次才是散文件。
-        importer.treeUri()?.let { tree ->
-            AppLog.i(tag, "没有缓存，按记住的文件夹重新扫描：$tree")
-            importFolder(tree)
-            return
-        }
-        val uris = importer.persistedUris()
-        if (uris.isEmpty()) return
-        AppLog.i(tag, "没有缓存，按记住的 ${uris.size} 个 Uri 重新导入")
-        importNav(uris)
+    }
+
+    /** [maybeAutoRestore] 在 IO 线程算出来的恢复方案，用来避免在后台线程直接改状态。 */
+    private sealed interface RestorePlan {
+        data class FromCache(val bytes: Long) : RestorePlan
+        data class Folder(val uri: Uri) : RestorePlan
+        data class Files(val uris: List<Uri>) : RestorePlan
     }
 
     /**
@@ -328,8 +451,12 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
     /** 网页把编码好的数据集分块传回来了（导入成功后自动发生）。 */
     fun onPackSerialized(json: String) {
         viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) { cache.write(json) }
-            cacheSize = cache.sizeBytes()
+            // 写盘与量体积放同一段 IO：sizeBytes() 是一次 stat，留在主线程同样是磁盘调用
+            val written = withContext(Dispatchers.IO) {
+                cache.write(json) to cache.sizeBytes()
+            }
+            val ok = written.first
+            cacheSize = written.second
             if (ok) {
                 AppLog.i(tag, "数据集已缓存：${json.length} 字符 / ${cacheSize / 1024} KB")
             } else {
@@ -643,16 +770,26 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
         autoRestoreFailed = false
         lastGoodDataset = outcome
 
-        // 页面确认可用了，这时候才把「上次选择」记下来
-        pendingRemember?.let {
-            importer.remember(it)
-            rememberedCount = importer.persistedUris().size
-            pendingRemember = null
-        }
-        pendingRememberTree?.let {
-            importer.rememberTree(it)
-            rememberedCount = 1
-            pendingRememberTree = null
+        // 页面确认可用了，这时候才把「上次选择」记下来。
+        // 写偏好 + 重新点一遍列表都是磁盘操作，放到 IO；界面上的号码等写完再更新，
+        // 这样界面上显示的数量一定是磁盘上已经落好的那份。
+        val rememberUris = pendingRemember
+        val rememberTree = pendingRememberTree
+        pendingRemember = null
+        pendingRememberTree = null
+        if (rememberUris != null || rememberTree != null) {
+            viewModelScope.launch {
+                val count = withContext(Dispatchers.IO) {
+                    if (rememberUris != null) {
+                        importer.remember(rememberUris)
+                        importer.persistedUris().size
+                    } else {
+                        importer.rememberTree(rememberTree!!)
+                        1
+                    }
+                }
+                rememberedCount = count
+            }
         }
 
         val detail = "机场 ${outcome.airports} · 航点 ${outcome.nodes} · 航段 ${outcome.segments}"
@@ -754,13 +891,27 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
         const val FUEL_HEAL_MS = 5_000L
     }
 
-    /** 只清 App 记下的 Uri 列表，不动用户文件。 */
+    /** 重新量一次本机缓存体积。设置页每次进入时调一次，量体积本身是一次 stat，走 IO。 */
+    fun refreshCacheSize() {
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.IO) { cache.sizeBytes() }
+            cacheSize = bytes
+        }
+    }
+
+    /** 只清 App 记下的 Uri 列表与本机缓存，不动用户文件。 */
     fun forgetImported() {
-        importer.clear()
-        cache.clear()
-        rememberedCount = 0
-        cacheSize = 0
-        message = "已清空导入记录与本机缓存"
+        viewModelScope.launch {
+            // 写偏好与删缓存文件都是磁盘操作，走 IO；状态等真正删完再改，
+            // 免得界面上已经显示「0」，磁盘上还留着那几十兆
+            withContext(Dispatchers.IO) {
+                importer.clear()
+                cache.clear()
+            }
+            rememberedCount = 0
+            cacheSize = 0
+            message = "已清空导入记录与本机缓存"
+        }
     }
 
     // ---------------------------------------------------------------- 方案
@@ -776,6 +927,15 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
     /** 读一次 DOM 里的方案卡片。生成/展开/复制都不会触发写盘。 */
     fun refreshPlans() {
         val ch = routeChannel ?: run { pendingFuelFill = false; return }
+        // 通道背后的 WebView 已经销毁 / 渲染进程已经没了：这一次读根本发不出去，
+        // 回调也不会来。**在置 plansBusy 之前**就退出，才不会留下悬挂。
+        // 光靠 detachChannel 复位不够 —— 复位之后到下一次 refreshPlans 之间，
+        // 如果通道还挂在字段上（例如 onRenderProcessGone 与 destroyAll 的先后），
+        // 仍然会再悬挂一次。这里以通道自身的存活为准，从根上堵住。
+        if (!ch.isAlive) {
+            resetPlanFetchState()
+            return
+        }
         if (plansBusy) {
             // 正在读的时候页面又变了：记一笔，读完再补一次，
             // 否则会漏掉「读完的瞬间正好生成完」的那一批方案
@@ -834,6 +994,13 @@ class ToolsViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------------------------------------------------------------- 已存航路
 
+    /**
+     * 重新读一遍航路库。
+     *
+     * `RouteStore.list()` 走 SharedPreferences：**首次**访问要同步解析 XML，
+     * 之后都是内存读。所以构造期这一次必须放 IO（见 [init]），
+     * 而保存/改名/删除后的重读已经在偏好加载完毕之后，留在调用点同步执行即可。
+     */
     private fun reloadSaved() {
         saved = routeStore.list()
         activeId = routeStore.activeId()
